@@ -50,17 +50,17 @@ def get_monte_carlo_percentiles(price_paths, initial_price, days_to_simulate):
     # Creamos un dataframe con los dias proyectados
     df_sim = pd.DataFrame({
         'Day': range(1, days_to_simulate + 1),
-        'P10 (Pésimista)': p10,
-        'P50 (Esperado)': p50,
-        'P90 (Optimista)': p90
+        'P10 (Bearish)': p10,
+        'P50 (Expected)': p50,
+        'P90 (Bullish)': p90
     })
     
-    # Insertar valor inicial
+    # Insert initial value
     initial_row = pd.DataFrame({
         'Day': [0],
-        'P10 (Pésimista)': [initial_price],
-        'P50 (Esperado)': [initial_price],
-        'P90 (Optimista)': [initial_price]
+        'P10 (Bearish)': [initial_price],
+        'P50 (Expected)': [initial_price],
+        'P90 (Bullish)': [initial_price]
     })
     
     return pd.concat([initial_row, df_sim], ignore_index=True)

@@ -127,9 +127,9 @@ def get_monthly_returns(equity_curve):
     monthly = monthly.reset_index()
     monthly.rename(columns={'1_plus_r': 'Returns'}, inplace=True)
     
-    # Pivotear para heatmap
+    # Pivot for heatmap
     heatmap_df = monthly.pivot(index='Year', columns='Month', values='Returns')
-    heatmap_df.columns = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'][:len(heatmap_df.columns)]
+    heatmap_df.columns = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][:len(heatmap_df.columns)]
     
     return heatmap_df
 

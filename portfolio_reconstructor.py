@@ -233,13 +233,13 @@ def reconstruct_portfolio(activity_df):
         orig_ticker = orig_ticker[0] if orig_ticker else t
         
         resumen_lista.append({
-            'Activo': orig_ticker,
-            'Unidades': round(unidades, 5),
-            'Invertido ($)': round(invertido, 2),
-            'Precio Actual ($)': round(precio_act, 2),
-            'Valor Neto ($)': round(valor_neto, 2),
-            'G/P ($)': round(gp, 2),
-            'G/P (%)': gp_pct
+            'Asset': orig_ticker,
+            'Units': round(unidades, 5),
+            'Invested ($)': round(invertido, 2),
+            'Current Price ($)': round(precio_act, 2),
+            'Net Value ($)': round(valor_neto, 2),
+            'PnL ($)': round(gp, 2),
+            'PnL (%)': gp_pct
         })
         
     df_resumen = pd.DataFrame(resumen_lista).sort_values(by='Valor Neto ($)', ascending=False).reset_index(drop=True)

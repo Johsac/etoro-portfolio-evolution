@@ -9,7 +9,7 @@ from financial_metrics import calculate_performance_metrics, calculate_risk_metr
 from forecasting import monte_carlo_simulation, get_monte_carlo_percentiles, trend_forecasting
 from portfolio_reconstructor import reconstruct_portfolio
 
-# Configuración de página
+# Page Configuration
 st.set_page_config(
     page_title="eToro Portfolio Evolution",
     layout="wide",
@@ -17,7 +17,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Estilo Premium
+# Premium Style (Glassmorphism & Neon)
 st.markdown("""
 <style>
     /* Global styles and typography */
@@ -39,40 +39,41 @@ st.markdown("""
 
 # --- Sidebar Control & Inputs ---
 with st.sidebar:
-    with st.expander("📂 Carga de Datos", expanded=True):
-        st.markdown("Sube tu archivo de estado de cuenta de eToro.")
+    with st.expander("📂 Data Upload", expanded=True):
+        st.markdown("Upload your eToro account statement file.")
         uploaded_file = st.file_uploader("Upload Excel (.xlsx)", type=['xlsx'])
         
         if uploaded_file is None:
-            # Mostramos estado vacío
-            st.info("👈 Sube tu archivo de eToro ('Account Statement') exportado en Excel para comenzar el análisis.")
+            # Empty state
+            st.title(" eToro Portfolio Evolution")
+            st.info("👈 Upload your eToro 'Account Statement' (Exported to Excel) to start the analysis.")
             st.stop()
 
-        # --- Procesar Archivo ---
-        with st.spinner("Procesando datos..."):
+        # --- Process File ---
+        with st.spinner("Processing data..."):
             try:
                 data_dict = load_etoro_data(uploaded_file)
                 activity = data_dict['activity']
                 closed_pos = data_dict['closed_positions']
                 dividends = data_dict['dividends']
-                st.success("¡Datos cargados con éxito!")
+                st.success("Data loaded successfully!")
             except Exception as e:
-                st.error(f"Error al analizar el archivo: {e}")
+                st.error(f"Error parsing file: {e}")
                 st.stop()
     
-    st.markdown("<br><br><br>", unsafe_allow_html=True) # Espaciador para empujar abajo
+    st.markdown("<br><br><br>", unsafe_allow_html=True) # Spacer
     st.markdown("---")
-    # Estilo especial para el toggle de IA
+    # AI Toggle Premium Styling
     st.markdown("""
         <style>
-        /* 1. RESETEO TOTAL */
+        /* 1. GLOBAL RESET */
         [data-testid="stSidebar"] label p {
             font-size: 1rem !important;
             font-weight: normal !important;
             color: white !important;
         }
 
-        /* 2. ESTILO EXCLUSIVO MEDIANTE ANCLA */
+        /* 2. EXCLUSIVE ANCHOR STYLE */
         #ai-anchor + div {
             border: 3px solid #00ff9d !important;
             border-radius: 15px !important;
@@ -96,16 +97,16 @@ with st.sidebar:
         <div id="ai-anchor"></div>
     """, unsafe_allow_html=True)
     
-    show_ai = st.toggle("Preguntar a la IA", value=False, key="toggle_ia_pro")
+    show_ai = st.toggle("Ask the AI Copilot", value=False, key="toggle_ia_pro")
 
-# --- Mapeo de Benchmarks ---
+# --- Benchmark Mapping ---
 BENCHMARKS = {
     'S&P 500': '^GSPC',
     'NASDAQ 100': '^NDX',
     'MSCI World': 'URTH'
 }
 
-# --- Layout Principal Dinámico ---
+# --- Dynamic Main Layout ---
 if show_ai:
     main_col, ai_col = st.columns([0.7, 0.3])
 else:
@@ -113,76 +114,76 @@ else:
 
 with main_col:
     st.title(" eToro Portfolio Evolution")
-    st.markdown("Plataforma de análisis profundo e histórico de tu patrimonio en eToro.")
+    st.markdown("Advanced Forensic Analysis Platform for your eToro Wealth.")
     
-    # --- Computaciones Base ---
-    with st.spinner("Descargando precios históricos de Yahoo Finance y procesando Splits..."):
+    # --- Base Computations ---
+    with st.spinner("Fetching historical prices from Yahoo Finance & Processing Splits..."):
         try:
             equity_curve, pos_summary_realtime = reconstruct_portfolio(activity)
             perf_metrics = calculate_performance_metrics(equity_curve, activity)
             risk_metrics = calculate_risk_metrics(equity_curve)
         except Exception as e:
-            st.error(f"Error en yfinance: {e}")
+            st.error(f"yfinance error: {e}")
             st.stop()
 
     if equity_curve.empty:
-        st.warning("No se pudo construir la Curva de Equidad Verdadera. Revisa los datos.")
+        st.warning("Could not reconstruct a valid Equity Curve. Please check data formatting.")
         st.stop()
 
-    # --- Layout de Pestañas ---
+    # --- Tabs Layout ---
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-            "📊 Resumen de Cuenta", 
-            "🧮 Desglose & Composición",
-            "📉 Riesgo & Drawdown", 
-            "🌱 Simulador Interés Compuesto",
-            "🔮 Predicciones (Monte Carlo)",
-            "📚 Histórico de Operaciones"
+            "📊 Account Summary", 
+            "🧮 Asset Breakdown",
+            "📉 Risk & Drawdown", 
+            "🌱 Compound Interest Sim",
+            "🔮 Monte Carlo Predictions",
+            "📚 Trade History"
         ])
 
     with tab1:
-        st.subheader("⚡ Métricas de Rendimiento Histórico")
+        st.subheader("⚡ Historical Performance Metrics")
         col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            st.metric("Total Return (Nominal)", f"{perf_metrics['Total Return']*100:.2f}%", help="Mide la ganancia total bruta del portafolio.")
+            st.metric("Total Return (Nominal)", f"{perf_metrics['Total Return']*100:.2f}%", help="Measures the total gross profit of the portfolio.")
         with col2:
-            st.metric("TWRR (Flujos Ajustados)", f"{perf_metrics['TWRR']*100:.2f}%", help="Time-Weighted Return: Rendimiento real aislando el efecto de depósitos/retiros.")
+            st.metric("TWRR (Flow Adjusted)", f"{perf_metrics['TWRR']*100:.2f}%", help="Time-Weighted Return: Real performance isolating the effect of deposits/withdrawals.")
         with col3:
-            st.metric("Volatilidad Anualizada", f"{risk_metrics['Volatility']*100:.2f}%", help="Desviación típica anual; mide cuánto varían los precios históricamente.")
+            st.metric("Annualized Volatility", f"{risk_metrics['Volatility']*100:.2f}%", help="Annual standard deviation; measures historical price swings.")
         with col4:
-            st.metric("Ratio Sharpe", f"{risk_metrics['Sharpe']:.2f}", help="Retorno ajustado al riesgo. >1.0 es considerado aceptable, >2.0 es excelente.")
+            st.metric("Sharpe Ratio", f"{risk_metrics['Sharpe']:.2f}", help="Risk-adjusted return. >1.0 is acceptable, >2.0 is excellent.")
         with col5:
             from financial_metrics import get_portfolio_pe
             pe_ratio = get_portfolio_pe(pos_summary_realtime)
             if pd.notnull(pe_ratio):
-                st.metric("📊 P/E del Portafolio", f"{pe_ratio:.1f}x", help="Price-to-Earnings Ratio promedio del portafolio (Trailling P/E promedio de las acciones activas).")
+                st.metric("📊 Portfolio P/E", f"{pe_ratio:.1f}x", help="Average Price-to-Earnings Ratio for the active stock portfolio.")
             else:
-                st.metric("📊 P/E del Portafolio", "N/A", help="Price-to-Earnings Ratio promedio del portafolio (Trailling P/E promedio de las acciones activas).")
+                st.metric("📊 Portfolio P/E", "N/A", help="Average Price-to-Earnings Ratio for the active stock portfolio.")
 
-        # Fallback Nominal View (Old Chart)
-        st.markdown("### 📊 Evolución del Saldo Nominal (Net Value Absoluto)")
+        # Nominal View (Equity Curve)
+        st.markdown("### 📊 Absolute Net Value Evolution ($)")
         fig_abs = go.Figure()
         fig_abs.add_trace(go.Scatter(x=equity_curve['Date'], y=equity_curve['Net_Value'], mode='lines', 
-                                    name='Valor Portafolio ($)', line=dict(color='#00ff9d', width=2),
+                                    name='Portfolio Value ($)', line=dict(color='#00ff9d', width=2),
                                     fill='tozeroy', fillcolor='rgba(0, 255, 157, 0.1)'))
         fig_abs.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=30, b=0),
-                             hovermode="x unified", xaxis_title="", yaxis_title="Equidad Neta ($)")
+                             hovermode="x unified", xaxis_title="", yaxis_title="Net Equity ($)")
         st.plotly_chart(fig_abs, use_container_width=True)
 
         # Benchmarks & Timeframes
-        st.markdown("### 📈 Rendimiento Normalizado vs Benchmarks (Base 100%)")
+        st.markdown("### 📈 Normalized Performance vs Benchmarks (Base 100%)")
         
         col_bench, col_time = st.columns([1, 2])
         with col_bench:
-             bench_sel = st.selectbox("Añadir Benchmark", ['Ninguno'] + list(BENCHMARKS.keys()) + ['Personalizado'])
+             bench_sel = st.selectbox("Compare with Benchmark", ['None'] + list(BENCHMARKS.keys()) + ['Custom'])
              custom_bench = ""
-             if bench_sel == 'Personalizado':
-                 custom_bench = st.text_input("Ingresa Ticker Yahoo Finance (Ej. URTH, ARKK):")
+             if bench_sel == 'Custom':
+                 custom_bench = st.text_input("Enter Yahoo Finance Ticker (e.g., URTH, ARKK):")
                  
         with col_time:
-             st.write("Filtro Temporal:")
-             timeframe = st.radio("Ventana:", ["Max", "5Y", "1Y", "YTD", "6M", "3M"], horizontal=True, label_visibility="collapsed")
+             st.write("Time Filter:")
+             timeframe = st.radio("Window:", ["Max", "5Y", "1Y", "YTD", "6M", "3M"], horizontal=True, label_visibility="collapsed")
         
-        # Filtro Temporal
+        # Time Filter Logic
         df_plot = equity_curve.copy()
         end_date = df_plot['Date'].max()
         if timeframe == '5Y': start_date = end_date - pd.DateOffset(years=5)
@@ -194,23 +195,21 @@ with main_col:
         
         df_plot = df_plot[df_plot['Date'] >= start_date].copy()
         
-        # Normalizar Retorno (Base 0 en start_date)
-        # TWRR Acumulado desde start_date
+        # Normalize Return (Base 0 at start_date)
         if 'Daily_TWRR' in df_plot.columns:
              df_plot['TWRR_Period'] = (1 + df_plot['Daily_TWRR']).cumprod() - 1
         else:
-             # Fallback
              initial_val = df_plot['Net_Value'].iloc[0]
              df_plot['TWRR_Period'] = (df_plot['Net_Value'] / initial_val) - 1 if initial_val != 0 else 0
         
         fig_eq = go.Figure()
         fig_eq.add_trace(go.Scatter(x=df_plot['Date'], y=df_plot['TWRR_Period'], mode='lines', 
-                                    name='Portafolio (TWRR)', line=dict(color='#00ff9d', width=3),
+                                    name='Portfolio (TWRR)', line=dict(color='#00ff9d', width=3),
                                     fill='tozeroy', fillcolor='rgba(0, 255, 157, 0.1)'))
         
-        # Agregar Benchmark
-        if bench_sel != 'Ninguno':
-            bench_ticker = custom_bench if bench_sel == 'Personalizado' else BENCHMARKS[bench_sel]
+        # Add Benchmark
+        if bench_sel != 'None':
+            bench_ticker = custom_bench if bench_sel == 'Custom' else BENCHMARKS[bench_sel]
             if bench_ticker:
                 import yfinance as yf
                 try:
@@ -219,7 +218,6 @@ with main_col:
                          b_data = b_data[bench_ticker.upper()] if bench_ticker.upper() in b_data.columns else b_data.iloc[:, 0]
                     b_data = b_data.reindex(df_plot['Date']).ffill().bfill()
                     b_ret = b_data.pct_change().fillna(0)
-                    # Ensure the first day is exactly 0
                     b_ret.iloc[0] = 0
                     b_cum = (1 + b_ret).cumprod() - 1
                     fig_eq.add_trace(go.Scatter(x=df_plot['Date'], y=b_cum, mode='lines', 
@@ -228,30 +226,30 @@ with main_col:
                     pass
 
         fig_eq.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=30, b=0),
-                             hovermode="x unified", xaxis_title="", yaxis_title="Retorno Acumulado",
+                             hovermode="x unified", xaxis_title="", yaxis_title="Cumulative Return (%)",
                              yaxis_tickformat='.1%')
         st.plotly_chart(fig_eq, use_container_width=True)
         
-        # Rendimientos Mensuales y Dividendos
-        st.markdown("### 📅 Heatmap de Rendimientos Mensuales")
+        # Monthly Returns Heatmap
+        st.markdown("### 📅 Monthly Returns Heatmap")
         monthly_ret = get_monthly_returns(equity_curve)
         if not monthly_ret.empty:
             fig_heat = px.imshow(monthly_ret * 100, text_auto=".1f", color_continuous_scale="RdYlGn",
                                  color_continuous_midpoint=0,
-                                 labels=dict(x="Mes", y="Año", color="Retorno (%)"),
+                                 labels=dict(x="Month", y="Year", color="Return (%)"),
                                  template="plotly_dark")
             fig_heat.update_xaxes(side="top")
             st.plotly_chart(fig_heat, use_container_width=True)
             
-        # SECTION DIVIDENDOS
-        st.markdown("### 💸 Ingresos Pasivos (Dividendos eToro)")
+        # PASSIVE INCOME SECTION
+        st.markdown("### 💸 Passive Income (eToro Dividends)")
         div_df = activity[activity['Tipo'].str.contains('dividendo', na=False, case=False)].copy()
         if not div_df.empty:
              col_div_op, _ = st.columns([1, 2])
              with col_div_op:
-                 div_group = st.radio("Frecuencia:", ["Mensual", "Trimestral", "Anual"], horizontal=True)
+                 div_group = st.radio("Frequency:", ["Monthly", "Quarterly", "Annual"], horizontal=True)
                  
-             freq_map = {"Mensual": "M", "Trimestral": "Q", "Anual": "Y"}
+             freq_map = {"Monthly": "M", "Quarterly": "Q", "Annual": "Y"}
              freq = freq_map[div_group]
              
              div_df['Date'] = pd.to_datetime(div_df['Date'])
@@ -261,43 +259,38 @@ with main_col:
              div_grouped['Date'] = div_grouped['Date'].dt.to_timestamp()
              
              fig_div = go.Figure()
-             # Configurar el formato del eje X según el grupo
              x_format = "%b %Y" if freq == "M" else ("%Y-Q%q" if freq == "Q" else "%Y")
              
              fig_div.add_trace(go.Bar(x=div_grouped['Date'], y=div_grouped['Importe'], 
-                                    marker_color='#f1c40f', name='Dividendos',
+                                    marker_color='#f1c40f', name='Dividends',
                                     text=div_grouped['Importe'].apply(lambda x: f"${x:.1f}"),
                                     textposition='auto'))
              fig_div.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=30, b=0),
-                                  xaxis_title="", yaxis_title="Ingresos ($)",
+                                  xaxis_title="", yaxis_title="Income ($)",
                                   xaxis=dict(tickformat=x_format))
              st.plotly_chart(fig_div, use_container_width=True)
              
-             # Suma total rápida
-             st.caption(f"**Total Histórico Bruto:** ${div_df['Importe'].sum():.2f} USD generados pasivamente.")
+             st.caption(f"**Total Historical Dividends:** ${div_df['Importe'].sum():.2f} USD generated passively.")
 
 
     with tab2:
-        st.header("🧮 Desglose Estratégico del Portafolio")
+        st.header("🧮 Strategic Portfolio Breakdown")
+        st.markdown("#### 🥧 Asset Allocation")
         
-        st.markdown("#### 🥧 Distribución Actual")
-        
-        # Opciones de Agrupación
-        groupby_opt = st.radio("Agrupar por:", ["Activo Individual", "Categoría (Acciones, ETF, etc.)"], horizontal=True)
+        groupby_opt = st.radio("Group by:", ["Individual Asset", "Category (Stock, ETF, etc.)"], horizontal=True)
         
         if not pos_summary_realtime.empty:
             df_pie = pos_summary_realtime[pos_summary_realtime['Valor Neto ($)'] > 1].copy()
             
-            if groupby_opt == "Categoría (Acciones, ETF, etc.)":
-                # Mapear desde df activity
+            if groupby_opt == "Category (Stock, ETF, etc.)":
                 from portfolio_reconstructor import TICKER_MAPPING
                 temp_act = activity[['Detalles', 'Tipo de activo']].dropna()
                 temp_act['Ticker_Clean'] = temp_act['Detalles'].apply(lambda x: TICKER_MAPPING.get(str(x).split('/')[0].strip().upper(), str(x).split('/')[0].strip().upper()))
                 
                 category_map = temp_act.drop_duplicates('Ticker_Clean').set_index('Ticker_Clean')['Tipo de activo'].to_dict()
-                df_pie['Agrupación'] = df_pie['Activo'].map(category_map).fillna('Desconocido')
-                df_pie = df_pie.groupby('Agrupación')['Valor Neto ($)'].sum().reset_index()
-                fig_pie = px.pie(df_pie, values='Valor Neto ($)', names='Agrupación', 
+                df_pie['Category'] = df_pie['Activo'].map(category_map).fillna('Unknown')
+                df_pie = df_pie.groupby('Category')['Valor Neto ($)'].sum().reset_index()
+                fig_pie = px.pie(df_pie, values='Valor Neto ($)', names='Category', 
                                  hole=0.4, color_discrete_sequence=px.colors.sequential.Teal)
             else:
                 fig_pie = px.pie(df_pie, values='Valor Neto ($)', names='Activo', 
@@ -307,78 +300,79 @@ with main_col:
             st.plotly_chart(fig_pie, use_container_width=True)
             
         st.markdown("---")
-        st.markdown("#### 🧊 Evolución del Capital (Absoluto y Porcentual)")
-        chart_mode = st.radio("Métrica:", ["Valor Absoluto (USD)", "Porcentaje Normalizado (%)"], horizontal=True)
+        st.markdown("#### 🧊 Portfolio Wealth Composition")
+        chart_mode = st.radio("Metric:", ["Absolute Value (USD)", "Normalized Percentage (%)"], horizontal=True)
         
         df_g = equity_curve.copy()
-        
-        # Base deposits
         initial_saldo = max(0, df_g['Net_Value'].iloc[0] - df_g['Net_Flow'].iloc[0]) if not df_g.empty else 0
-        df_g['Depositos_Acumulados'] = df_g['Net_Flow'].cumsum() + initial_saldo
+        df_g['Cum_Deposits'] = df_g['Net_Flow'].cumsum() + initial_saldo
         
-        # Dividends
         div_df_raw = activity[activity['Tipo'].str.contains('dividendo', na=False, case=False)].copy()
         if not div_df_raw.empty:
             div_df_raw['Date'] = pd.to_datetime(div_df_raw['Date'])
             div_daily = div_df_raw.groupby('Date')['Importe'].sum().reset_index()
             df_g = pd.merge(df_g, div_daily, on='Date', how='left')
             df_g['Importe'] = df_g['Importe'].fillna(0)
-            df_g['Dividendos_Acumulados'] = df_g['Importe'].cumsum()
+            df_g['Cum_Dividends'] = df_g['Importe'].cumsum()
         else:
-            df_g['Dividendos_Acumulados'] = 0.0
+            df_g['Cum_Dividends'] = 0.0
             
-        df_g['Capital_Total'] = df_g['Net_Value']
+        df_g['Total_Capital'] = df_g['Net_Value']
         
         fig_stack = go.Figure()
         
-        if chart_mode == "Valor Absoluto (USD)":
-            y1 = df_g['Depositos_Acumulados']
-            y2 = df_g['Depositos_Acumulados'] + df_g['Dividendos_Acumulados']
-            y3 = df_g['Capital_Total']
-            y_title = "Valor (USD)"
+        if chart_mode == "Absolute Value (USD)":
+            y1 = df_g['Cum_Deposits']
+            y2 = df_g['Cum_Deposits'] + df_g['Cum_Dividends']
+            y3 = df_g['Total_Capital']
+            y_title = "Value (USD)"
             tickfmt = "$.0f"
         else:
-            # Safe divide by initial cap / cumulative deposits
-            base = df_g['Depositos_Acumulados'].replace(0, 1) # Prevent div by 0
-            y1 = (df_g['Depositos_Acumulados'] / base) * 100
-            y2 = ((df_g['Depositos_Acumulados'] + df_g['Dividendos_Acumulados']) / base) * 100
-            y3 = (df_g['Capital_Total'] / base) * 100
-            y_title = "Crecimiento (%)"
+            base = df_g['Cum_Deposits'].replace(0, 1)
+            y1 = (df_g['Cum_Deposits'] / base) * 100
+            y2 = ((df_g['Cum_Deposits'] + df_g['Cum_Dividends']) / base) * 100
+            y3 = (df_g['Total_Capital'] / base) * 100
+            y_title = "Growth (%)"
             tickfmt = ".1f%"
             
         fig_stack.add_trace(go.Scatter(x=df_g['Date'], y=y1, mode='lines',
-                                       name='Capital Aportado', line=dict(color='#888888', width=2, dash='dot')))
+                                       name='Net Capital Invested', line=dict(color='#888888', width=2, dash='dot')))
         fig_stack.add_trace(go.Scatter(x=df_g['Date'], y=y2, mode='lines',
-                                       name='Capital + Dividendos', line=dict(color='#f1c40f', width=2)))
+                                       name='Capital + Dividends', line=dict(color='#f1c40f', width=2)))
         fig_stack.add_trace(go.Scatter(x=df_g['Date'], y=y3, mode='lines',
-                                       name='Portafolio Total (Con Ganancias)', line=dict(color='#00ff9d', width=3)))
+                                       name='Total Portfolio Value', line=dict(color='#00ff9d', width=3)))
         
         fig_stack.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=30, b=0), 
                                 hovermode="x unified", yaxis_title=y_title, yaxis=dict(tickformat=tickfmt))
         st.plotly_chart(fig_stack, use_container_width=True)
         
         st.markdown("---")
-        st.markdown("### Portafolio Actual en Tiempo Real (Yahoo Finance)")
+        st.markdown("### Real-time Holdings (Yahoo Finance Sourced)")
         if not pos_summary_realtime.empty:
-            st.dataframe(pos_summary_realtime.style.format({
-                "Invertido ($)": "${:,.2f}",
-                "Precio Actual ($)": "${:,.2f}",
-                "Valor Neto ($)": "${:,.2f}",
-                "G/P ($)": "${:,.2f}",
-                "G/P (%)": "{:.2%}"
+            st.dataframe(pos_summary_realtime.rename(columns={
+                "Activo": "Ticker",
+                "Invertido ($)": "Invested ($)",
+                "Precio Actual ($)": "Current Price ($)",
+                "Valor Neto ($)": "Net Value ($)",
+                "G/P ($)": "PnL ($)",
+                "G/P (%)": "PnL (%)"
+            }).style.format({
+                "Invested ($)": "${:,.2f}",
+                "Current Price ($)": "${:,.2f}",
+                "Net Value ($)": "${:,.2f}",
+                "PnL ($)": "${:,.2f}",
+                "PnL (%)": "{:.2%}"
             }))
-        else:
-            st.info("No hay posiciones abiertas documentadas.")
 
     with tab3:
-        st.subheader("Análisis de Riesgo y Series de Caídas (Drawdown)")
+        st.subheader("Risk Analysis & Drawdown Series")
         col1, col2 = st.columns(2)
         with col1:
-            st.metric("Peor Caída (Max Drawdown)", f"{risk_metrics['Max Drawdown']*100:.2f}%", delta_color="inverse", help="Mayor porcentaje histórico perdido desde el pico hasta el valle en la curva de capital.")
+            st.metric("Max Drawdown", f"{risk_metrics['Max Drawdown']*100:.2f}%", delta_color="inverse", help="Deepest historical drop from peak to trough in the equity curve.")
         with col2:
-            st.metric("Ratio Sortino (Riesgo a la baja)", f"{risk_metrics['Sortino']:.2f}", help="Variante del Sharpe. Penaliza al portafolio únicamente por su volatilidad a la baja (pérdidas).")
+            st.metric("Sortino Ratio", f"{risk_metrics['Sortino']:.2f}", help="Sharpe variant that only penalizes downward volatility (losses).")
         
-        st.markdown("### 🎢 Evolución del Drawdown (Riesgo Histórico)")
+        st.markdown("### 🎢 Historical Drawdown Timeline (%)")
         fig_dd = go.Figure()
         fig_dd.add_trace(go.Scatter(x=equity_curve['Date'], y=equity_curve['Drawdown'] * 100, mode='lines',
                                     name='Drawdown (%)', line=dict(color='#ff4b4b', width=1.5),
@@ -388,173 +382,149 @@ with main_col:
         st.plotly_chart(fig_dd, use_container_width=True)
 
     with tab4:
-        st.subheader("🌱 Planificador: Interés Compuesto")
-        st.markdown("Proyecta tu capital futuro basado en aportaciones recurrentes y el poder del interés compuesto.")
+        st.subheader("🌱 Strategic Compound Interest Planner")
+        st.markdown("Project your future capital based on recurring contributions and compound growth.")
         
         col_inp, col_figs = st.columns([1, 2.5])
         
         with col_inp:
-            st.markdown("##### Parámetros")
-            
-            # Valor default: ultimo valor de la cartera
+            st.markdown("##### Simulation Parameters")
             default_principal = equity_curve['Net_Value'].iloc[-1] if not equity_curve.empty else 10000.0
-            c_principal = st.slider("Principal Inicial ($):", 0, 200000, int(default_principal), step=500, help="Tu capital de partida (se pre-carga con el tamaño actual de tu portafolio).")
-            c_contrib = st.slider("Aportación Mensual ($):", 0, 5000, 200, step=50, help="Cuánto dinero nuevo inyectas al mes de forma constante.")
-            c_rate = st.slider("Tasa de Crecimiento Anual:", 0.0, 0.25, 0.10, step=0.01, help="Rendimiento neto esperado del mercado (ej. S&P500 promedia ~10% anual).")
-            c_div = st.slider("Tasa de Dividendo Anual:", 0.0, 0.10, 0.02, step=0.01, help="Porcentaje de tu portafolio que paga dividendos en efectivo / cash anualmente.")
-            c_years = st.slider("Años a proyectar:", 1, 50, 20, step=1, help="Plazo temporal de la simulación hacia el futuro.")
-            c_inf = st.slider("Tasa de Inflación Anual:", 0.0, 0.15, 0.03, step=0.01, help="Para ajustar qué tanto poder adquisitivo tendrá relamente tu dinero en el futuro (descuento del valor Real).")
-            c_var = st.slider("Variación Tasa (Riesgo/Varianza):", 0.0, 0.15, 0.05, step=0.01, help="El porcentaje matemático de margen de error (Crea el abanico pesimista y optimista).")
+            c_principal = st.slider("Initial Principal ($):", 0, 200000, int(default_principal), step=500)
+            c_contrib = st.slider("Monthly Contribution ($):", 0, 5000, 200, step=50)
+            c_rate = st.slider("Expected Annual Growth:", 0.0, 0.25, 0.10, step=0.01)
+            c_div = st.slider("Est. Dividend Yield:", 0.0, 0.10, 0.02, step=0.01)
+            c_years = st.slider("Years to Project:", 1, 50, 20, step=1)
+            c_inf = st.slider("Expected Inflation Rate:", 0.0, 0.15, 0.03, step=0.01)
+            c_var = st.slider("Variance (Volatility Risk):", 0.0, 0.15, 0.05, step=0.01)
             
-            st.markdown("##### Estrategia")
-            c_drip_opt = st.radio("Manejo de Dividendos:", ["Re-invertir (DRIP)", "Acumular Cash No-capitalizable"])
+            st.markdown("##### Strategy")
+            c_drip_opt = st.radio("Dividend Management:", ["Re-invest (DRIP)", "Accumulate Cash"])
             drip_bool = True if "DRIP" in c_drip_opt else False
             
         with col_figs:
             from forecasting import compound_interest_simulator
             df_comp = compound_interest_simulator(c_principal, c_contrib, c_rate, c_div, c_years, c_inf, c_var)
             
-            sub_tab_inv, sub_tab_var = st.tabs(["Gráfico de Inversión (Absoluto)", "Gráfico de Varianza (Crecimiento X Aportado)"])
+            sub_tab_inv, sub_tab_var = st.tabs(["Accumulation Chart", "Multiplier Factor"])
             
             with sub_tab_inv:
                 fig_inv = go.Figure()
-                # Todos tienen la aportacion total base
                 fig_inv.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['Contribucion_Total'], mode='lines',
-                                             name='Capital Directo Depositado', line=dict(color='#888888', dash='dot')))
+                                             name='Direct Capital Invested', line=dict(color='#888888', dash='dot')))
                                              
                 if drip_bool:
                     fig_inv.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['DRIP_Total'], mode='lines',
-                                                 name='Interés Compuesto Total', line=dict(color='#00ff9d', width=3)))
+                                                 name='Total Compound Growth', line=dict(color='#00ff9d', width=3)))
                     fig_inv.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['DRIP_Superior'], mode='lines',
-                                                 name='Rango Superior (Optimista)', line=dict(color='rgba(0,255,157,0.5)', dash='dash')))
+                                                 name='Upper Bound (Bullish)', line=dict(color='rgba(0,255,157,0.5)', dash='dash')))
                     fig_inv.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['DRIP_Inferior'], mode='lines',
-                                                 name='Rango Inferior (Pesimista)', line=dict(color='rgba(255,100,100,0.5)', dash='dash')))
+                                                 name='Lower Bound (Bearish)', line=dict(color='rgba(255,100,100,0.5)', dash='dash')))
                     fig_inv.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['DRIP_Ajustado_Inflacion'], mode='lines',
-                                                 name='Poder Adquisitivo Real (Deflactado)', line=dict(color='#f1c40f', width=2)))
+                                                 name='Real Purchasing Power (Adjusted)', line=dict(color='#f1c40f', width=2)))
                 else:
                     fig_inv.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['NoDRIP_Capital'], mode='lines',
-                                                 name='Capital Base (Interés simple sobre div)', line=dict(color='#3498db', width=2)))
+                                                 name='Base Capital (Simple Interest)', line=dict(color='#3498db', width=2)))
                     fig_inv.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['NoDRIP_Total'], mode='lines',
-                                                 name='Capital Base + Dividendos Acumulados ($)', line=dict(color='#00ff9d', width=3)))
+                                                 name='Base + Accum. Dividends ($)', line=dict(color='#00ff9d', width=3)))
                                                  
                 fig_inv.update_layout(template="plotly_dark", hovermode="x unified",
-                                      xaxis_title="Años Proyectados", yaxis_title="Monto Acumulado ($)",
+                                      xaxis_title="Simulation Years", yaxis_title="Total Value ($)",
                                       margin=dict(l=0, r=0, t=20, b=0), yaxis=dict(tickformat="$.0f"))
                 st.plotly_chart(fig_inv, use_container_width=True)
                 
             with sub_tab_var:
                 fig_var = go.Figure()
-                if drip_bool:
-                    fig_var.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['Factor_DRIP'], mode='lines',
-                                                 name='Multiplicador Esperado (X veces)', line=dict(color='#00ff9d', width=3)))
-                    fig_var.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['Factor_DRIP_Up'], mode='lines',
-                                                 name='Límite Superior', line=dict(color='rgba(0,255,157,0.5)', dash='dash')))
-                    fig_var.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['Factor_DRIP_Down'], mode='lines',
-                                                 name='Límite Inferior', line=dict(color='rgba(255,100,100,0.5)', dash='dash')))
-                else:
-                    fig_var.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['Factor_NoDRIP'], mode='lines',
-                                                 name='Multiplicador (No-DRIP)', line=dict(color='#00ff9d', width=3)))
+                y_col = 'Factor_DRIP' if drip_bool else 'Factor_NoDRIP'
+                fig_var.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp[y_col], mode='lines',
+                                             name='Expected Multiplier', line=dict(color='#00ff9d', width=3)))
                                                  
                 fig_var.update_layout(template="plotly_dark", hovermode="x unified",
-                                      xaxis_title="Años Proyectados", yaxis_title="Factor (Monto Final / Total Depositado)",
+                                      xaxis_title="Projection Years", yaxis_title="Total Multiplier (Final / Invested)",
                                       margin=dict(l=0, r=0, t=20, b=0))
                 st.plotly_chart(fig_var, use_container_width=True)
 
 
     with tab5:
-        st.subheader("🔮 Proyecciones a Futuro y Simulaciones Monte Carlo")
+        st.subheader("🔮 Probability Projections: Monte Carlo")
+        st.markdown("Monte Carlo simulations generate 10,000 potential future paths based on historical volatility.")
         
-        st.markdown("La Simulación Monte Carlo crea miles de posibles caminos futuros basados en la volatilidad y los retornos históricos. **(Esto toma un par de segundos)**")
+        mc_years = st.slider("Simulate years forward:", 1, 10, 3)
+        mc_days = mc_years * 252 
         
-        mc_years = st.slider("Años a simular:", 1, 50, 3)
-        mc_days = mc_years * 252 # dias trading
-        
-        if st.button("🚀 Ejecutar 10,000 Simulaciones Monte Carlo"):
-            with st.spinner("Procesando 10,000 universos paralelos..."):
+        if st.button("🚀 Run 10,000 Monte Carlo Simulations"):
+            with st.spinner("Processing 10,000 parallel universes..."):
                 initial_price = equity_curve['Net_Value'].iloc[-1]
-                # Solo visualizamos un subgrupo para no crashear plotly
                 paths = monte_carlo_simulation(equity_curve, days_to_simulate=mc_days, simulations=10000)
                 
                 if paths.size > 0:
                     percentiles_df = get_monte_carlo_percentiles(paths, initial_price, days_to_simulate=mc_days)
                     
                     fig_mc = go.Figure()
-                    # P90
                     fig_mc.add_trace(go.Scatter(x=percentiles_df['Day'], y=percentiles_df['P90 (Optimista)'],
-                                                mode='lines', name='Optimista (P90)', line=dict(color='rgba(0,255,157, 0.8)', dash='dash')))
-                    # P50
+                                                mode='lines', name='Bullish (P90)', line=dict(color='rgba(0,255,157, 0.8)', dash='dash')))
                     fig_mc.add_trace(go.Scatter(x=percentiles_df['Day'], y=percentiles_df['P50 (Esperado)'],
-                                                mode='lines', name='Esperado (P50)', line=dict(color='#00ff9d', width=3)))
-                    # P10
+                                                mode='lines', name='Expected (P50)', line=dict(color='#00ff9d', width=3)))
                     fig_mc.add_trace(go.Scatter(x=percentiles_df['Day'], y=percentiles_df['P10 (Pésimista)'],
-                                                mode='lines', name='Pesimista (P10)', line=dict(color='rgba(255,75,75,0.8)', dash='dash'),
+                                                mode='lines', name='Bearish (P10)', line=dict(color='rgba(255,75,75,0.8)', dash='dash'),
                                                 fill='tonexty', fillcolor='rgba(0,255,157,0.1)'))
                     
-                    fig_mc.update_layout(template="plotly_dark", title=f"Proyección a {mc_years} año(s)",
-                                         xaxis_title="Días de Trading", yaxis_title="Equidad Proyectada (USD)")
+                    fig_mc.update_layout(template="plotly_dark", title=f"Projection for {mc_years} Year(s)",
+                                         xaxis_title="Trading Days", yaxis_title="Projected Equity ($)")
                     st.plotly_chart(fig_mc, use_container_width=True)
                     
-                    # Holt Winters trend
                     hw_trend = trend_forecasting(equity_curve, periods=mc_days)
                     if not hw_trend.empty:
-                        st.markdown("### 📈 Suavizado Exponencial (Holt-Winters Trend)")
+                        st.markdown("### 📈 Exponential Smoothing (Holt-Winters Trend)")
                         fig_hw = go.Figure()
-                        # Historico
                         fig_hw.add_trace(go.Scatter(x=equity_curve['Date'], y=equity_curve['Net_Value'],
-                                                    name="Histórico", line=dict(color="gray")))
-                        # Prediccion
+                                                    name="Historical", line=dict(color="gray")))
                         fig_hw.add_trace(go.Scatter(x=hw_trend['Date'], y=hw_trend['Forecast'],
-                                                    name="Tendencia Proyectada", line=dict(color="#00ff9d", width=3)))
+                                                    name="Trend Forecast", line=dict(color="#00ff9d", width=3)))
                         fig_hw.update_layout(template="plotly_dark")
                         st.plotly_chart(fig_hw, use_container_width=True)
-                else:
-                     st.error("No hay suficientes datos históricos para simular.")
 
     with tab6:
-        st.header("📚 Rendimiento de Operaciones Cerradas")
+        st.header("📚 Historical Trade Performance")
         closed_pos = data_dict.get('closed_positions', pd.DataFrame())
         if not closed_pos.empty:
-            # Intentar localizar columnas genéricas de PnL y Activo
             pnl_col = [c for c in closed_pos.columns if 'Beneficio' in c or 'Profit' in c or 'Ganancia' in c]
             if pnl_col:
                 col_pnl = pnl_col[0]
-                # Convertimos a numerico
                 closed_pos[col_pnl] = pd.to_numeric(closed_pos[col_pnl], errors='coerce').fillna(0)
                 total_profit = closed_pos[closed_pos[col_pnl] > 0][col_pnl].sum()
                 total_loss = closed_pos[closed_pos[col_pnl] < 0][col_pnl].sum()
                 net_pnl = total_profit + total_loss
                 
                 c1, c2, c3 = st.columns(3)
-                c1.metric("💸 Ganancias Brutas", f"${total_profit:,.2f}")
-                c2.metric("🩸 Pérdidas Brutas", f"${total_loss:,.2f}")
-                c3.metric("⚖️ PnL Neto Cerrado", f"${net_pnl:,.2f}", delta=f"${net_pnl:,.2f}")
+                c1.metric("💸 Gross Profits", f"${total_profit:,.2f}")
+                c2.metric("🩸 Gross Losses", f"${total_loss:,.2f}")
+                c3.metric("⚖️ Net Realized PnL", f"${net_pnl:,.2f}", delta=f"${net_pnl:,.2f}")
                 
                 st.markdown("---")
                 col_rank1, col_rank2 = st.columns(2)
                 with col_rank1:
-                    st.markdown("#### 🏆 Top 5 Mejores Operaciones")
+                    st.markdown("#### 🏆 Top 5 Winners")
                     best_5 = closed_pos.nlargest(5, col_pnl)[['Acción', col_pnl]]
-                    st.dataframe(best_5.style.format({col_pnl: "${:,.2f}"}).applymap(lambda x: "color: #00ff9d;", subset=[col_pnl]), use_container_width=True)
+                    st.dataframe(best_5.rename(columns={'Acción': 'Asset'}).style.format({col_pnl: "${:,.2f}"}).applymap(lambda x: "color: #00ff9d;", subset=[col_pnl]), use_container_width=True)
                 with col_rank2:
-                    st.markdown("#### 💀 Top 5 Peores Operaciones")
+                    st.markdown("#### 💀 Top 5 Losers")
                     worst_5 = closed_pos.nsmallest(5, col_pnl)[['Acción', col_pnl]]
-                    st.dataframe(worst_5.style.format({col_pnl: "${:,.2f}"}).applymap(lambda x: "color: #ff4b4b;", subset=[col_pnl]), use_container_width=True)
+                    st.dataframe(worst_5.rename(columns={'Acción': 'Asset'}).style.format({col_pnl: "${:,.2f}"}).applymap(lambda x: "color: #ff4b4b;", subset=[col_pnl]), use_container_width=True)
                 
-                st.markdown("#### Histórico de Operaciones Individuales")
+                st.markdown("#### Complete Trade Log")
                 st.dataframe(closed_pos.style.applymap(lambda x: "color: #00ff9d;" if isinstance(x, (int, float)) and x > 0 else ("color: #ff4b4b;" if isinstance(x, (int, float)) and x < 0 else ""), subset=[col_pnl]), use_container_width=True)
-            else:
-                st.dataframe(closed_pos)
         else:
-            st.info("No se completó la carga de Posiciones Cerradas.")
+            st.info("Closed positions log not found or empty.")
 
 # ==========================
-# CHATBOT GOOGLE GEMINI (OPCIONAL - SOLO SI TOGGLE ACTIVADO)
+# AI COPILOT SECTION (GEMINI)
 # ==========================
 if show_ai:
     with ai_col:
-        st.markdown("### 🧠 Copiloto IA (Gemini)")
-        from dotenv import load_dotenv
+        st.markdown("### 🧠 AI Copilot (Gemini)")
         import os
+        from dotenv import load_dotenv
         import yfinance as yf
 
         load_dotenv()
@@ -562,22 +532,21 @@ if show_ai:
         
         if GEMINI_KEY:
             c1, c2 = st.columns([0.8, 0.2])
-            if c2.button("🧹", help="Limpiar Memoria", key="clear_chat_ai"):
+            if c2.button("🧹", help="Clear Memory", key="clear_chat_ai"):
                 st.session_state.messages = []
                 st.rerun()
-            st.markdown("Consulta métricas o evalúa activos en tiempo real.")
+            st.markdown("Query your metrics or evaluate assets in real-time.")
             
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=GEMINI_KEY)
             except ImportError:
-                st.warning("Librería de Google AI no instalada. Revisa requirements.txt.")
+                st.warning("Google AI library not found. Please check requirements.txt.")
                 st.stop()
         
         if "messages" not in st.session_state:
             st.session_state.messages = []
             
-        # Contenedor con altura fija para que el chat use la pantalla y el input quede fijo abajo
         chat_placeholder = st.container(height=650)
         
         for message in st.session_state.messages:
@@ -587,35 +556,34 @@ if show_ai:
                 
         def get_portfolio_context():
             try:
-                context = f"Fecha Actual del Sistema: {datetime.now().strftime('%d de %B de %Y')}\n"
-                context += "Contexto del Portafolio Actual:\n"
+                context = f"Current System Date: {datetime.now().strftime('%d %B %Y')}\n"
+                context += "Portfolio Context:\n"
                 if 'Net_Value' in equity_curve.columns:
-                    context += f"Valor Total Actual: ${equity_curve['Net_Value'].iloc[-1]:.2f}\n"
+                    context += f"Total Portfolio Value: ${equity_curve['Net_Value'].iloc[-1]:.2f}\n"
                 if 'Total Return' in perf_metrics:
-                    context += f"Total Return (Nominal): {perf_metrics['Total Return']*100:.2f}%\n"
+                    context += f"Overall Nominal Return: {perf_metrics['Total Return']*100:.2f}%\n"
                 if 'TWRR' in perf_metrics:
-                    context += f"TWRR (Flujos Ajustados): {perf_metrics['TWRR']*100:.2f}%\n"
+                    context += f"TWRR (Flow-Adjusted): {perf_metrics['TWRR']*100:.2f}%\n"
                 if 'Volatility' in risk_metrics:
-                    context += f"Volatilidad Anual: {risk_metrics['Volatility']*100:.2f}%\n"
+                    context += f"Annualized Volatility: {risk_metrics['Volatility']*100:.2f}%\n"
                 if 'Max Drawdown' in risk_metrics:
-                    context += f"Peor Caída (Drawdown): {risk_metrics['Max Drawdown']*100:.2f}%\n"
+                    context += f"Max Historical Drawdown: {risk_metrics['Max Drawdown']*100:.2f}%\n"
                 if 'Sortino' in risk_metrics:
                     context += f"Sortino Ratio: {risk_metrics['Sortino']:.2f}\n"
                 if 'pe_ratio' in globals() and pd.notnull(pe_ratio):
-                    context += f"P/E Ponderado del Portafolio: {pe_ratio:.2f}\n"
+                    context += f"Portfolio Weighted P/E: {pe_ratio:.2f}\n"
+
                 if not pos_summary_realtime.empty:
-                    context += "Top Activos Abiertos (Sincronizando Precios Yahoo Finance...):\n"
+                    context += "Active Holdings (Real-time Prices from Yahoo Finance):\n"
                     for _, r in pos_summary_realtime.head(5).iterrows():
                         ticker = r['Activo']
                         try:
-                            # Inyección de precio real para evitar alucinaciones
                             curr_price = yf.Ticker(ticker).history(period="1d")['Close'].iloc[-1]
-                            price_info = f"Precio Real Yahoo Finance: ${curr_price:.2f}"
+                            price_info = f"Yahoo Finance Live Price: ${curr_price:.2f}"
                         except:
-                            price_info = "Precio Real: No disponible en este momento"
-                        context += f"- {ticker}: {r['Valor Neto ($)']} USD ({price_info}, G/P: {r['G/P (%)']:+.2%})\n"
+                            price_info = "Live Price: Not available"
+                        context += f"- {ticker}: {r['Valor Neto ($)']} USD ({price_info}, PnL %: {r['G/P (%)']:+.2%})\n"
                 
-                # Integrar top closed positions si data_dict lo posee:
                 if 'closed_positions' in data_dict:
                     closed_df = data_dict['closed_positions']
                     if not closed_df.empty:
@@ -623,32 +591,16 @@ if show_ai:
                         if pnl_cols:
                             c_pnl = pnl_cols[0]
                             closed_df[c_pnl] = pd.to_numeric(closed_df[c_pnl], errors='coerce').fillna(0)
-                            
-                            tot_profit = closed_df[closed_df[c_pnl] > 0][c_pnl].sum()
-                            tot_loss = closed_df[closed_df[c_pnl] < 0][c_pnl].sum()
-                            net_pnl = tot_profit + tot_loss
-
-                            context += f"PnL Neto Cerrado (Total Histórico): ${net_pnl:.2f}\n"
-                            context += f"Ganancias Brutas Cerradas: ${tot_profit:.2f}\n"
-                            context += f"Pérdidas Brutas Cerradas: ${tot_loss:.2f}\n"
-                            
-                            best_5 = closed_df.nlargest(5, c_pnl)
-                            context += "Top 5 Mejores Operaciones Cerradas Históricamente:\n"
-                            for _, r in best_5.iterrows():
-                                context += f"- {r.get('Acción', 'Activo')}: +${r[c_pnl]:.2f}\n"
-                                
-                            worst_5 = closed_df.nsmallest(5, c_pnl)
-                            context += "Top 5 Peores Operaciones Cerradas Históricamente (Pérdidas):\n"
-                            for _, r in worst_5.iterrows():
-                                context += f"- {r.get('Acción', 'Activo')}: -${abs(r[c_pnl]):.2f}\n"
-                                
+                            tot_p = closed_df[closed_df[c_pnl] > 0][c_pnl].sum()
+                            tot_l = closed_df[closed_df[c_pnl] < 0][c_pnl].sum()
+                            context += f"Historical Realized PnL: ${tot_p+tot_l:.2f} (Profit: ${tot_p:.2f}, Loss: ${tot_l:.2f})\n"
                 return context
             except:
-                return "Datos de portafolio no definidos todavía."
+                return "Portfolio data not available yet."
 
         if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
             with chat_placeholder.chat_message("assistant"):
-                sys_inst = f"Eres un analista de portafolio avanzado. Hoy es {datetime.now().strftime('%d de %B de %Y')}. NO ALUCINES PRECIOS, usa exactamente los que te proporciono. Su radiografía es:\n" + get_portfolio_context()
+                sys_inst = f"You are a professional financial portfolio analyst. Today is {datetime.now().strftime('%d %B %Y')}. DO NOT HALLUCINATE PRICES; use the ones provided. Data context:\n" + get_portfolio_context()
                 try:
                     import google.generativeai as genai
                     try:
@@ -662,15 +614,13 @@ if show_ai:
                         history.append({"role": g_role, "parts": m["parts"]})
                         
                     chat = model.start_chat(history=history)
-                    with st.spinner("Analizando..."):
+                    with st.spinner("Analyzing..."):
                         response = chat.send_message(st.session_state.messages[-1]["parts"][0])
                         st.markdown(response.text)
-                    
                     st.session_state.messages.append({"role": "model", "parts": [response.text]})
                 except Exception as e:
-                    st.error(f"Error AI: {e}")
+                    st.error(f"AI Error: {e}")
 
-        # Input siempre debe estar renderizado de último para evitar salto gráfico
-        if prompt := st.chat_input("Escribe tu pregunta aquí..."):
+        if prompt := st.chat_input("Ask a question about your portfolio..."):
             st.session_state.messages.append({"role": "user", "parts": [prompt]})
             st.rerun()

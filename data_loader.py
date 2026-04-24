@@ -18,9 +18,9 @@ def load_etoro_data(file):
         financial_summary = pd.read_excel(xls, 'Resumen financiero')
         
     except ValueError as e:
-        raise Exception(f"Error cargando el archivo: No se encontró alguna de las pestañas requeridas. {e}")
+        raise Exception(f"File loading error: One or more required sheets were not found. {e}")
     except Exception as e:
-        raise Exception(f"Excepción general cargando archivo: {e}")
+        raise Exception(f"General exception loading file: {e}")
         
     return clean_data(activity, closed_positions, dividends, summary, financial_summary)
 
