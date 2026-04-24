@@ -1,51 +1,53 @@
 # 📈 eToro Portfolio Evolution
 
 [![Python Version](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://etoro-portfolio-evolution.streamlit.app/)
 [![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
 ## 📝 Overview
-**eToro Portfolio Evolution** is a high-performance financial analytics dashboard designed for eToro investors who demand professional-grade insights into their historical performance. 
-
-Standard brokerage interfaces often mask true performance due to deposits and withdrawals. This tool solves that by reconstructing your entire portfolio history day-by-day, calculating the **Time-Weighted Rate of Return (TWRR)**, and providing an AI-powered Copilot for deep forensic analysis of your assets.
+**eToro Portfolio Evolution** is a professional-grade financial analytics dashboard that allows investors to bypass brokerage interface limitations. By reconstructing your portfolio history from raw eToro account statements, the platform calculates critical performance metrics like **TWRR (Time-Weighted Rate of Return)**, neutralizing the impact of deposits and withdrawals to reveal your true investment skill.
 
 ---
 
 ## 📂 Project Structure
-The project is built with a modular architecture to ensure scalability and ease of maintenance:
+The project is organized into logical modules to separate concerns between data processing, financial math, and user interface:
 
-```text
-eToro-Portfolio-Evolution/
-├── app.py                     # Entry point: Streamlit UI orquestration & layout
-├── data_loader.py             # Excel Parser: Processes eToro Account Statements
-├── portfolio_reconstructor.py  # Core Engine: Rebuilds daily holding & cash flows
-├── financial_metrics.py        # Analytics: TWRR, CAGR, Sharpe, Sortino, Drawdown
-├── forecasting.py              # Statistics: Monte Carlo price simulations
-├── requirements.txt            # Dependency manifest
-├── .env.example                # Template for environment variables (API Keys)
-├── .gitignore                  # Protection for sensitive data (.env, .xlsx)
-└── README.md                   # Project documentation
-```
+### 🖼️ Frontend & Orchestration
+*   `app.py`: The main entry point. Handles the Streamlit UI, sidebar controls, and dashboard layout. 
+
+### ⚙️ Core Engines
+*   `data_loader.py`: **The Parser.** Robust logic to extract and clean data from eToro Excel statements.
+*   `portfolio_reconstructor.py`: **The Brain.** Rebuilds your daily holdings, handles stock splits, and syncs historical prices from Yahoo Finance.
+
+### 📊 Analytics & Mathematics
+*   `financial_metrics.py`: **Performance Engine.** Calculates TWRR, CAGR, Sharpe Ratio, Sortino Ratio, and Drawdowns.
+*   `forecasting.py`: **Intelligence Engine.** Powers Monte Carlo probability simulations and Compound Interest projections.
+
+### 🛠️ Setup & Configuration
+*   `requirements.txt`: List of all necessary Python libraries for reproduction.
+*   `LICENSE`: Legal framework (CC BY-NC-SA 4.0) protecting the work.
+*   `.env.example`: Template for optional configuration (AI Keys).
+*   `.gitignore`: Safe-list to prevent private financial data or local environments (`venv`) from being uploaded.
+
+> [!NOTE]
+> The `/venv` folder is purposefully excluded from the repository. It is a local environment generated during installation to keep the project lightweight and secure.
 
 ---
 
 ## 🚦 Getting Started
-Before running the application, ensure you have:
-1.  **eToro Account Statement:** Exported from your eToro account (Settings > Account > View > Export to Excel). Ensure you select the maximum possible timeframe.
-2.  **Google Gemini API Key:** Obtain a free key from the [Google AI Studio](https://aistudio.google.com/).
+To reproduce this project locally, ensure you have an **eToro Account Statement** (Excel format) exported from your eToro account (Settings > Account > View > Export). 
 
 ---
 
 ## ⚙️ Installation
-Follow these steps to set up the environment locally:
+Follow these exact steps to set up a functional local copy:
 
 1. **Clone the Repository:**
    ```bash
-   git clone https://github.com/tu-usuario/etoro-portfolio-evolution.git
+   git clone https://github.com/Johsac/etoro-portfolio-evolution.git
    cd etoro-portfolio-evolution
    ```
 
-2. **Setup Virtual Environment:**
+2. **Initialize Environment:**
    ```bash
    python -m venv venv
    # Windows:
@@ -59,49 +61,24 @@ Follow these steps to set up the environment locally:
    pip install -r requirements.txt
    ```
 
-4. **Environmental Variables:**
-   Create a `.env` file in the root directory:
-   ```env
-   GEMINI_API_KEY=your_api_key_here
-   ```
-
 ---
 
-## 📖 Usage Guide
-1. Run the app: `streamlit run app.py`.
-2. Expand the **"Carga de Datos"** (Data Loading) panel in the sidebar.
-3. Upload your `.xlsx` statement. The system will automatically fetch historical prices and adjust for splits.
-4. Toggle **"Preguntar a la IA"** (Ask AI) at the bottom left to enable the dedicated AI Sidebar for asset analysis.
+## 🔑 Environmental Variables (Optional)
+This application includes an **AI Copilot** feature powered by Google Gemini.
+*   **Is it mandatory?** No. The dashboard is fully functional for financial analysis without an API key. 
+*   **How to enable it:** If you wish to use the AI chat, create a `.env` file and add your key:
+    ```env
+    GEMINI_API_KEY=your_google_ai_studio_key
+    ```
 
 ---
 
 ## 🔒 Security & Privacy
-*   **Local Processing:** All Excel data parsing and financial calculations are performed **locally** in your machine or hosting environment.
-*   **Data Protection:** Your financial statements are **never** uploaded to external servers (except for the anonymized portfolio context sent to Gemini API if you use the AI chat).
-*   **Secret Management:** Your API Keys are stored in `.env` and excluded from git via `.gitignore` to prevent leaks.
-
----
-
-## 🤝 Contribution & Support
-Contributions are welcome! If you find a bug or have a feature request, please:
-1.  Open an **Issue** describing the problem.
-2.  Submit a **Pull Request** for enhancements.
-
-For support, you can reach out via GitHub Issues or contact the project maintainers.
+1.  **Local Isolation:** All analysis is performed on your machine. Your Excel statements are **never** uploaded to a server.
+2.  **Data Blindness:** The source code is configured to ignore `.xlsx` and `.env` files via `.gitignore`, ensuring your private data never reaches GitHub.
 
 ---
 
 ## 📜 License
-This project is licensed under the **Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)**.
-
-**You are free to:**
-*   **Share** — copy and redistribute the material in any medium or format.
-*   **Adapt** — remix, transform, and build upon the material.
-
-**Under the following terms:**
-*   **Attribution** — You must give appropriate credit.
-*   **NonCommercial** — You may **NOT** use the material for commercial purposes.
-*   **ShareAlike** — If you remix, transform, or build upon the material, you must distribute your contributions under the same license as the original.
-
----
-*Created with ❤️ for the eToro investor community.*
+Licensed under **CC BY-NC-SA 4.0**. 
+**Prohibits commercial use.** You may share and adapt the code for personal use, provided you attribute the original author and use the same license.
