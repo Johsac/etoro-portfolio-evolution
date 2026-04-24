@@ -9,76 +9,83 @@
 ---
 
 ## 📂 Project Structure
-The project is organized into logical modules to separate concerns between data processing, financial math, and user interface:
-
-### 🖼️ Frontend & Orchestration
-*   `app.py`: The main entry point. Handles the Streamlit UI, sidebar controls, and dashboard layout. 
-
-### ⚙️ Core Engines
-*   `data_loader.py`: **The Parser.** Robust logic to extract and clean data from eToro Excel statements.
-*   `portfolio_reconstructor.py`: **The Brain.** Rebuilds your daily holdings, handles stock splits, and syncs historical prices from Yahoo Finance.
-
-### 📊 Analytics & Mathematics
-*   `financial_metrics.py`: **Performance Engine.** Calculates TWRR, CAGR, Sharpe Ratio, Sortino Ratio, and Drawdowns.
-*   `forecasting.py`: **Intelligence Engine.** Powers Monte Carlo probability simulations and Compound Interest projections.
-
-### 🛠️ Setup & Configuration
-*   `requirements.txt`: List of all necessary Python libraries for reproduction.
-*   `LICENSE`: Legal framework (CC BY-NC-SA 4.0) protecting the work.
-*   `.env.example`: Template for optional configuration (AI Keys).
-*   `.gitignore`: Safe-list to prevent private financial data or local environments (`venv`) from being uploaded.
-
-> [!NOTE]
-> The `/venv` folder is purposefully excluded from the repository. It is a local environment generated during installation to keep the project lightweight and secure.
+```text
+eToro-Portfolio-Evolution/
+├── app.py                     # 🖼️ Frontend: Streamlit UI & Orchestration
+├── data_loader.py             # ⚙️ Core: Excel Parser & Data Cleaning
+├── portfolio_reconstructor.py  # ⚙️ Core: Daily Portfolio Reconstruction Engine
+├── financial_metrics.py        # 📊 Analytics: TWRR, CAGR, Sharpe & Risk Math
+├── forecasting.py              # 📊 Analytics: Monte Carlo & Compound Simulators
+├── requirements.txt            # 🛠️ Setup: Project Dependencies
+├── LICENSE                    # 🛠️ Setup: CC BY-NC-SA 4.0 (Non-Commercial)
+├── .env.example               # 🛠️ Setup: Template for Optional AI Keys
+└── .gitignore                 # 🛠️ Setup: Files excluded from Git (e.g., .env, venv)
+```
 
 ---
 
-## 🚦 Getting Started
-To reproduce this project locally, ensure you have an **eToro Account Statement** (Excel format) exported from your eToro account (Settings > Account > View > Export). 
+## 🚀 Installation & Setup Guide
+
+Following these steps will set up the application on your computer from scratch:
+
+### 1. Clone the Repository
+Open your terminal and run:
+```bash
+git clone https://github.com/Johsac/etoro-portfolio-evolution.git
+cd etoro-portfolio-evolution
+```
+
+### 2. Create a Virtual Environment
+This isolates the project dependencies.
+```bash
+# General command:
+python -m venv venv
+
+# Activate on Windows:
+.\venv\Scripts\activate
+
+# Activate on Linux/Mac:
+source venv/bin/activate
+```
+
+### 3. Install Required Libraries
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Configure API Key (Optional)
+This dashboard works 100% without an API key. However, if you want to use the **AI Copilot** feature, create a file named `.env` and add:
+```env
+GEMINI_API_KEY=your_key_here
+```
 
 ---
 
-## ⚙️ Installation
-Follow these exact steps to set up a functional local copy:
+## 🎮 How to Run the App
 
-1. **Clone the Repository:**
+Once the installation is complete, you can launch the dashboard with a single command:
+
+1. **Start the server:**
    ```bash
-   git clone https://github.com/Johsac/etoro-portfolio-evolution.git
-   cd etoro-portfolio-evolution
+   streamlit run app.py
    ```
+2. **Access the Dashboard:**
+   Streamlit will automatically open your default web browser. If it doesn't, navigate to:
+   `http://localhost:8501`
 
-2. **Initialize Environment:**
-   ```bash
-   python -m venv venv
-   # Windows:
-   .\venv\Scripts\activate
-   # Linux/Mac:
-   source venv/bin/activate
-   ```
-
-3. **Install Dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
----
-
-## 🔑 Environmental Variables (Optional)
-This application includes an **AI Copilot** feature powered by Google Gemini.
-*   **Is it mandatory?** No. The dashboard is fully functional for financial analysis without an API key. 
-*   **How to enable it:** If you wish to use the AI chat, create a `.env` file and add your key:
-    ```env
-    GEMINI_API_KEY=your_google_ai_studio_key
-    ```
+3. **Usage:**
+   - Go to the **"Data Upload"** panel in the sidebar.
+   - Upload your eToro Account Statement (`.xlsx`).
+   - Explore the different tabs: Account Summary, Asset Breakdown, Risk Analysis, etc.
 
 ---
 
 ## 🔒 Security & Privacy
-1.  **Local Isolation:** All analysis is performed on your machine. Your Excel statements are **never** uploaded to a server.
-2.  **Data Blindness:** The source code is configured to ignore `.xlsx` and `.env` files via `.gitignore`, ensuring your private data never reaches GitHub.
+*   **100% Local:** All data processing happens on **your machine**. Your statements are never sent to external servers.
+*   **Privacy First:** Your Excel files and `.env` credentials are automatically ignored by Git (via `.gitignore`), so they will never be uploaded to GitHub.
 
 ---
 
 ## 📜 License
 Licensed under **CC BY-NC-SA 4.0**. 
-**Prohibits commercial use.** You may share and adapt the code for personal use, provided you attribute the original author and use the same license.
+**Commercial use is prohibited.** You are free to share and adapt the code for personal use, provided you attribute the original author and use the same license.
