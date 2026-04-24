@@ -444,7 +444,7 @@ with main_col:
         st.subheader("🔮 Probability Projections: Monte Carlo")
         st.markdown("Monte Carlo simulations generate 10,000 potential future paths based on historical volatility.")
         
-        mc_years = st.slider("Simulate years forward:", 1, 10, 3)
+        mc_years = st.slider("Simulate years forward:", 1, 50, 3)
         mc_days = mc_years * 252 
         
         if st.button("🚀 Run 10,000 Monte Carlo Simulations"):
@@ -456,11 +456,14 @@ with main_col:
                     percentiles_df = get_monte_carlo_percentiles(paths, initial_price, days_to_simulate=mc_days)
                     
                     fig_mc = go.Figure()
-                    fig_mc.add_trace(go.Scatter(x=percentiles_df['Day'], y=percentiles_df['P90 (Optimista)'],
+                    # Bullish (P90)
+                    fig_mc.add_trace(go.Scatter(x=percentiles_df['Day'], y=percentiles_df['P90 (Bullish)'],
                                                 mode='lines', name='Bullish (P90)', line=dict(color='rgba(0,255,157, 0.8)', dash='dash')))
-                    fig_mc.add_trace(go.Scatter(x=percentiles_df['Day'], y=percentiles_df['P50 (Esperado)'],
+                    # Expected (P50)
+                    fig_mc.add_trace(go.Scatter(x=percentiles_df['Day'], y=percentiles_df['P50 (Expected)'],
                                                 mode='lines', name='Expected (P50)', line=dict(color='#00ff9d', width=3)))
-                    fig_mc.add_trace(go.Scatter(x=percentiles_df['Day'], y=percentiles_df['P10 (Pésimista)'],
+                    # Bearish (P10)
+                    fig_mc.add_trace(go.Scatter(x=percentiles_df['Day'], y=percentiles_df['P10 (Bearish)'],
                                                 mode='lines', name='Bearish (P10)', line=dict(color='rgba(255,75,75,0.8)', dash='dash'),
                                                 fill='tonexty', fillcolor='rgba(0,255,157,0.1)'))
                     
@@ -500,12 +503,13 @@ with main_col:
                 col_rank1, col_rank2 = st.columns(2)
                 with col_rank1:
                     st.markdown("#### 🏆 Top 5 Winners")
-                    best_5 = closed_pos.nlargest(5, col_pnl)[['Acción', col_pnl]]
-                    st.dataframe(best_5.rename(columns={'Acción': 'Asset'}).style.format({col_pnl: "${:,.2f}"}).applymap(lambda x: "color: #00ff9d;", subset=[col_pnl]), use_container_width=True)
+                    asset_col = 'Action' if 'Action' in closed_pos.columns else ('Asset' if 'Asset' in closed_pos.columns else 'Acción')
+                    best_5 = closed_pos.nlargest(5, col_pnl)[[asset_col, col_pnl]]
+                    st.dataframe(best_5.rename(columns={asset_col: 'Asset'}).style.format({col_pnl: "${:,.2f}"}).applymap(lambda x: "color: #00ff9d;", subset=[col_pnl]), use_container_width=True)
                 with col_rank2:
                     st.markdown("#### 💀 Top 5 Losers")
-                    worst_5 = closed_pos.nsmallest(5, col_pnl)[['Acción', col_pnl]]
-                    st.dataframe(worst_5.rename(columns={'Acción': 'Asset'}).style.format({col_pnl: "${:,.2f}"}).applymap(lambda x: "color: #ff4b4b;", subset=[col_pnl]), use_container_width=True)
+                    worst_5 = closed_pos.nsmallest(5, col_pnl)[[asset_col, col_pnl]]
+                    st.dataframe(worst_5.rename(columns={asset_col: 'Asset'}).style.format({col_pnl: "${:,.2f}"}).applymap(lambda x: "color: #ff4b4b;", subset=[col_pnl]), use_container_width=True)
                 
                 st.markdown("#### Complete Trade Log")
                 st.dataframe(closed_pos.style.applymap(lambda x: "color: #00ff9d;" if isinstance(x, (int, float)) and x > 0 else ("color: #ff4b4b;" if isinstance(x, (int, float)) and x < 0 else ""), subset=[col_pnl]), use_container_width=True)
