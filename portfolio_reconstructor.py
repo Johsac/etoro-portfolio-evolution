@@ -242,6 +242,6 @@ def reconstruct_portfolio(activity_df):
             'PnL (%)': gp_pct
         })
         
-    df_resumen = pd.DataFrame(resumen_lista).sort_values(by='Valor Neto ($)', ascending=False).reset_index(drop=True)
+    df_resumen = pd.DataFrame(resumen_lista).sort_values(by='Net Value ($)', ascending=False).reset_index(drop=True)
     
     return daily_cash.reset_index().rename(columns={'index':'Date'}), df_resumen

@@ -280,7 +280,7 @@ with main_col:
         groupby_opt = st.radio("Group by:", ["Individual Asset", "Category (Stock, ETF, etc.)"], horizontal=True)
         
         if not pos_summary_realtime.empty:
-            df_pie = pos_summary_realtime[pos_summary_realtime['Valor Neto ($)'] > 1].copy()
+            df_pie = pos_summary_realtime[pos_summary_realtime['Net Value ($)'] > 1].copy()
             
             if groupby_opt == "Category (Stock, ETF, etc.)":
                 from portfolio_reconstructor import TICKER_MAPPING
@@ -288,12 +288,12 @@ with main_col:
                 temp_act['Ticker_Clean'] = temp_act['Detalles'].apply(lambda x: TICKER_MAPPING.get(str(x).split('/')[0].strip().upper(), str(x).split('/')[0].strip().upper()))
                 
                 category_map = temp_act.drop_duplicates('Ticker_Clean').set_index('Ticker_Clean')['Tipo de activo'].to_dict()
-                df_pie['Category'] = df_pie['Activo'].map(category_map).fillna('Unknown')
-                df_pie = df_pie.groupby('Category')['Valor Neto ($)'].sum().reset_index()
-                fig_pie = px.pie(df_pie, values='Valor Neto ($)', names='Category', 
+                df_pie['Category'] = df_pie['Asset'].map(category_map).fillna('Unknown')
+                df_pie = df_pie.groupby('Category')['Net Value ($)'].sum().reset_index()
+                fig_pie = px.pie(df_pie, values='Net Value ($)', names='Category', 
                                  hole=0.4, color_discrete_sequence=px.colors.sequential.Teal)
             else:
-                fig_pie = px.pie(df_pie, values='Valor Neto ($)', names='Activo', 
+                fig_pie = px.pie(df_pie, values='Net Value ($)', names='Asset', 
                                  hole=0.4, color_discrete_sequence=px.colors.sequential.Teal)
                 
             fig_pie.update_layout(template="plotly_dark", margin=dict(t=30, b=0, l=0, r=0))
@@ -350,12 +350,7 @@ with main_col:
         st.markdown("### Real-time Holdings (Yahoo Finance Sourced)")
         if not pos_summary_realtime.empty:
             st.dataframe(pos_summary_realtime.rename(columns={
-                "Activo": "Ticker",
-                "Invertido ($)": "Invested ($)",
-                "Precio Actual ($)": "Current Price ($)",
-                "Valor Neto ($)": "Net Value ($)",
-                "G/P ($)": "PnL ($)",
-                "G/P (%)": "PnL (%)"
+                "Asset": "Ticker"
             }).style.format({
                 "Invested ($)": "${:,.2f}",
                 "Current Price ($)": "${:,.2f}",
@@ -576,13 +571,13 @@ if show_ai:
                 if not pos_summary_realtime.empty:
                     context += "Active Holdings (Real-time Prices from Yahoo Finance):\n"
                     for _, r in pos_summary_realtime.head(5).iterrows():
-                        ticker = r['Activo']
+                        ticker = r['Asset']
                         try:
                             curr_price = yf.Ticker(ticker).history(period="1d")['Close'].iloc[-1]
                             price_info = f"Yahoo Finance Live Price: ${curr_price:.2f}"
                         except:
                             price_info = "Live Price: Not available"
-                        context += f"- {ticker}: {r['Valor Neto ($)']} USD ({price_info}, PnL %: {r['G/P (%)']:+.2%})\n"
+                        context += f"- {ticker}: {r['Net Value ($)']} USD ({price_info}, PnL %: {r['PnL (%)']:+.2%})\n"
                 
                 if 'closed_positions' in data_dict:
                     closed_df = data_dict['closed_positions']

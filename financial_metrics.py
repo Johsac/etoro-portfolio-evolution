@@ -147,12 +147,12 @@ def get_portfolio_pe(pos_summary):
     pes = []
     weights = []
     
-    total_val = pos_summary['Valor Neto ($)'].sum()
+    total_val = pos_summary['Net Value ($)'].sum()
     if total_val == 0: return np.nan
     
     for _, row in pos_summary.iterrows():
-        ticker = row['Activo']
-        val = row['Valor Neto ($)']
+        ticker = row['Asset']
+        val = row['Net Value ($)']
         
         try:
             info = yf.Ticker(ticker).info
