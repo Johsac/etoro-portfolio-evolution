@@ -107,6 +107,9 @@ def reconstruct_portfolio(activity_df):
             later_dates = daily_cash.index[daily_cash.index >= d_ts]
             if len(later_dates)>0:
                  daily_cash.loc[later_dates[0], 'Net_Flow'] += val
+                 
+    # Calcular Flujo Neto Acumulado para Retorno Absoluto
+    daily_cash['Cumulative_Net_Flow'] = daily_cash['Net_Flow'].cumsum()
             
     # Lógica de SPLITS
     splits_df = act_df[act_df['Tipo'].str.contains('Split', na=False, case=False)].copy()

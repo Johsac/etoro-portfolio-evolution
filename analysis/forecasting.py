@@ -80,7 +80,7 @@ def trend_forecasting(equity_curve, periods=365):
     # Aplicar Holt con tendencia pero sin estacionalidad fuerte asegurada (asumimos ruido)
     # Si detectamos suficientes datos, podriamos usar seasonal=True, pero en portafolios es inestable.
     try:
-        model = ExponentialSmoothing(ts_data['Net_Value'], trend='add', seasonal=None, initialization_method="estimated")
+        model = ExponentialSmoothing(ts_data['Net_Value'].values, trend='add', seasonal=None, initialization_method="estimated")
         fit_model = model.fit()
         forecast = fit_model.forecast(periods)
         

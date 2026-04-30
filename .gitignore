@@ -6,3 +6,6 @@ __pycache__/
 .streamlit/
 .DS_Store
 *.pyc
+
+# Ignore personal docs
+docs/

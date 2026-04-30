@@ -22,40 +22,60 @@ def calculate_daily_equity(activity_df):
 def calculate_performance_metrics(equity_curve, activity_df=None):
     """
     Calcula: 
-    - CAGR y TWRR Verdadero (Neutralizando depósitos)
-
+    - Total Return (Profit / Total Deposits) — matches eToro's methodology
+    - TWRR (Time-Weighted Rate of Return) — neutralizes deposits/withdrawals
+    - CAGR (Compound Annual Growth Rate)
     """
     if equity_curve.empty or len(equity_curve) < 2:
         return {'CAGR': 0, 'TWRR': 0, 'Total Return': 0}
 
-    df = equity_curve.copy()
-    df['Prev_Net_Value'] = df['Net_Value'].shift(1)
+    equity_curve['Prev_Net_Value'] = equity_curve['Net_Value'].shift(1)
     
-    # Calculate daily TWRR return with cash flows
-    df['Daily_TWRR'] = np.where(
-        df['Prev_Net_Value'] > 0, 
-        (df['Net_Value'] - df.get('Net_Flow', 0)) / df['Prev_Net_Value'] - 1, 
+    # Get the Net_Flow column (external cash flows: deposits/withdrawals)
+    if 'Net_Flow' in equity_curve.columns:
+        net_flow = equity_curve['Net_Flow'].fillna(0)
+    else:
+        net_flow = 0
+    
+    # TWRR Daily Return: R_t = (V_t - CF_t) / V_{t-1} - 1
+    # V_t already includes the cash flow in Saldo, so we subtract it to isolate pure return
+    equity_curve['Daily_TWRR'] = np.where(
+        equity_curve['Prev_Net_Value'] > 0, 
+        (equity_curve['Net_Value'] - net_flow) / equity_curve['Prev_Net_Value'] - 1, 
         0
     )
-    df.loc[df.index[0], 'Daily_TWRR'] = 0
-    total_twrr = (1 + df['Daily_TWRR']).prod() - 1
-
-    start_value = df['Net_Value'].iloc[0]
-    end_value = df['Net_Value'].iloc[-1]
+    # First day has no prior value, so return is 0
+    equity_curve.loc[equity_curve.index[0], 'Daily_TWRR'] = 0
     
-    if start_value == 0:
-         return {'CAGR': 0, 'TWRR': 0, 'Total Return': 0}
+    # Clip extreme daily returns to prevent outliers from corrupting TWRR
+    equity_curve['Daily_TWRR'] = equity_curve['Daily_TWRR'].clip(-0.5, 0.5)
+    
+    total_twrr = (1 + equity_curve['Daily_TWRR']).prod() - 1
 
+    end_value = equity_curve['Net_Value'].iloc[-1]
+    
+    # Total Nominal Return: Profit / Total Deposits (eToro methodology)
+    # This answers: "How much profit did I make relative to what I put in?"
+    if 'Cumulative_Net_Flow' in equity_curve.columns:
+        total_deposits = equity_curve['Cumulative_Net_Flow'].iloc[-1]
+        if total_deposits > 0:
+            total_nominal = (end_value - total_deposits) / total_deposits
+        else:
+            total_nominal = 0
+    else:
+        start_value = equity_curve['Net_Value'].iloc[0]
+        total_nominal = (end_value / start_value) - 1 if start_value != 0 else 0
+    
     # Calculo de dias
-    days = (df['Date'].iloc[-1] - df['Date'].iloc[0]).days
+    days = (equity_curve['Date'].iloc[-1] - equity_curve['Date'].iloc[0]).days
     years = days / 365.25
     
-    # Total Nominal Return
-    total_nominal = (end_value / start_value) - 1
-    
-    # CAGR
+    # CAGR based on TWRR
     if years > 0 and (1 + total_twrr) > 0:
-        cagr = (1 + total_twrr) ** (1 / years) - 1
+        try:
+            cagr = (1 + total_twrr) ** (1 / years) - 1
+        except ZeroDivisionError:
+            cagr = 0
     else:
         cagr = 0
         
@@ -65,7 +85,7 @@ def calculate_performance_metrics(equity_curve, activity_df=None):
         'Total Return': total_nominal
     }
 
-def calculate_risk_metrics(equity_curve, risk_free_rate=0.04):
+def calculate_risk_metrics(equity_curve, risk_free_rate=0.0):
     """
     Volatilidad anualizada (30 días), Sharpe, Sortino, Drawdown.
     """
@@ -84,12 +104,18 @@ def calculate_risk_metrics(equity_curve, risk_free_rate=0.04):
     
     # Sharpe Ratio
     avg_annual_return = daily_returns.mean() * 252
-    sharpe = (avg_annual_return - risk_free_rate) / volatility if volatility > 0 else 0
+    if volatility > 0:
+        sharpe = (avg_annual_return - risk_free_rate) / volatility
+    else:
+        sharpe = 0
     
     # Sortino Ratio (solo desviacion estandar de rendimientos negativos)
     downside_returns = daily_returns[daily_returns < 0]
     downside_volatility = downside_returns.std() * np.sqrt(252)
-    sortino = (avg_annual_return - risk_free_rate) / downside_volatility if downside_volatility > 0 else 0
+    if downside_volatility > 0:
+        sortino = (avg_annual_return - risk_free_rate) / downside_volatility
+    else:
+        sortino = 0
     
     # Drawdown
     equity_curve['Peak'] = equity_curve['Net_Value'].cummax()
@@ -171,5 +197,12 @@ def get_portfolio_pe(pos_summary):
     
     # Harmonic Mean for P/E
     # P/E_port = 1 / sum(weight_i / P/E_i)
-    weighted_pe = 1 / np.sum(weights / pes)
+    try:
+        sum_pes = np.sum(weights / pes)
+        if sum_pes == 0:
+            weighted_pe = np.nan
+        else:
+            weighted_pe = 1 / sum_pes
+    except ZeroDivisionError:
+        weighted_pe = np.nan
     return weighted_pe

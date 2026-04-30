@@ -4,10 +4,10 @@ import numpy as np
 from datetime import datetime
 import plotly.express as px
 import plotly.graph_objects as go
-from data_loader import load_etoro_data
-from financial_metrics import calculate_performance_metrics, calculate_risk_metrics, get_monthly_returns
-from forecasting import monte_carlo_simulation, get_monte_carlo_percentiles, trend_forecasting
-from portfolio_reconstructor import reconstruct_portfolio
+from engine.data_loader import load_etoro_data
+from analysis.financial_metrics import calculate_performance_metrics, calculate_risk_metrics, get_monthly_returns
+from analysis.forecasting import monte_carlo_simulation, get_monte_carlo_percentiles, trend_forecasting
+from engine.portfolio_reconstructor import reconstruct_portfolio
 
 # Page Configuration
 st.set_page_config(
@@ -56,6 +56,7 @@ with st.sidebar:
                 activity = data_dict['activity']
                 closed_pos = data_dict['closed_positions']
                 dividends = data_dict['dividends']
+                summary_attrs = data_dict.get('summary_attrs', {})
                 st.success("Data loaded successfully!")
             except Exception as e:
                 st.error(f"Error parsing file: {e}")
@@ -117,13 +118,28 @@ with main_col:
     st.markdown("Advanced Forensic Analysis Platform for your eToro Wealth.")
     
     # --- Base Computations ---
+    equity_curve = pd.DataFrame()
+    pos_summary_realtime = pd.DataFrame()
+    perf_metrics = {}
+    risk_metrics = {}
+    
     with st.spinner("Fetching historical prices from Yahoo Finance & Processing Splits..."):
         try:
             equity_curve, pos_summary_realtime = reconstruct_portfolio(activity)
-            perf_metrics = calculate_performance_metrics(equity_curve, activity)
-            risk_metrics = calculate_risk_metrics(equity_curve)
+            equity_curve = equity_curve.copy()  # Prevent cache mutation
+            
+            # Bound equity_curve to Excel summary dates if available
+            if not equity_curve.empty:
+                if 'start_date' in summary_attrs and pd.notnull(summary_attrs['start_date']):
+                    equity_curve = equity_curve[equity_curve['Date'] >= summary_attrs['start_date']]
+                if 'end_date' in summary_attrs and pd.notnull(summary_attrs['end_date']):
+                    equity_curve = equity_curve[equity_curve['Date'] <= summary_attrs['end_date']]
+                    
+                perf_metrics = calculate_performance_metrics(equity_curve, activity)
+                risk_metrics = calculate_risk_metrics(equity_curve)
         except Exception as e:
-            st.error(f"yfinance error: {e}")
+            import traceback
+            st.error(f"Error reconstruct_portfolio: {e}\n{traceback.format_exc()}")
             st.stop()
 
     if equity_curve.empty:
@@ -144,15 +160,15 @@ with main_col:
         st.subheader("⚡ Historical Performance Metrics")
         col1, col2, col3, col4, col5 = st.columns(5)
         with col1:
-            st.metric("Total Return (Nominal)", f"{perf_metrics['Total Return']*100:.2f}%", help="Measures the total gross profit of the portfolio.")
+            st.metric("Total Return (Nominal)", f"{perf_metrics.get('Total Return', 0)*100:.2f}%", help="Measures the total gross profit of the portfolio.")
         with col2:
-            st.metric("TWRR (Flow Adjusted)", f"{perf_metrics['TWRR']*100:.2f}%", help="Time-Weighted Return: Real performance isolating the effect of deposits/withdrawals.")
+            st.metric("TWRR (Flow Adjusted)", f"{perf_metrics.get('TWRR', 0)*100:.2f}%", help="Time-Weighted Return: Real performance isolating the effect of deposits/withdrawals.")
         with col3:
-            st.metric("Annualized Volatility", f"{risk_metrics['Volatility']*100:.2f}%", help="Annual standard deviation; measures historical price swings.")
+            st.metric("Annualized Volatility", f"{risk_metrics.get('Volatility', 0)*100:.2f}%", help="Annual standard deviation; measures historical price swings.")
         with col4:
-            st.metric("Sharpe Ratio", f"{risk_metrics['Sharpe']:.2f}", help="Risk-adjusted return. >1.0 is acceptable, >2.0 is excellent.")
+            st.metric("Sharpe Ratio", f"{risk_metrics.get('Sharpe', 0):.2f}", help="Risk-adjusted return. >1.0 is acceptable, >2.0 is excellent.")
         with col5:
-            from financial_metrics import get_portfolio_pe
+            from analysis.financial_metrics import get_portfolio_pe
             pe_ratio = get_portfolio_pe(pos_summary_realtime)
             if pd.notnull(pe_ratio):
                 st.metric("📊 Portfolio P/E", f"{pe_ratio:.1f}x", help="Average Price-to-Earnings Ratio for the active stock portfolio.")
@@ -174,14 +190,15 @@ with main_col:
         
         col_bench, col_time = st.columns([1, 2])
         with col_bench:
-             bench_sel = st.selectbox("Compare with Benchmark", ['None'] + list(BENCHMARKS.keys()) + ['Custom'])
-             custom_bench = ""
-             if bench_sel == 'Custom':
-                 custom_bench = st.text_input("Enter Yahoo Finance Ticker (e.g., URTH, ARKK):")
+             bench_selected = st.multiselect("Compare with Benchmarks:", list(BENCHMARKS.keys()), default=["S&P 500"])
+             custom_bench = st.text_input("Add Custom Ticker (e.g., ARKK):", key="custom_bench_input")
                  
         with col_time:
              st.write("Time Filter:")
              timeframe = st.radio("Window:", ["Max", "5Y", "1Y", "YTD", "6M", "3M"], horizontal=True, label_visibility="collapsed")
+             
+             st.write("Return Type:")
+             ret_type = st.radio("Type:", ["Absolute Profit (eToro Style)", "TWRR (Strict)"], index=1, horizontal=True, label_visibility="collapsed")
         
         # Time Filter Logic
         df_plot = equity_curve.copy()
@@ -196,34 +213,54 @@ with main_col:
         df_plot = df_plot[df_plot['Date'] >= start_date].copy()
         
         # Normalize Return (Base 0 at start_date)
-        if 'Daily_TWRR' in df_plot.columns:
-             df_plot['TWRR_Period'] = (1 + df_plot['Daily_TWRR']).cumprod() - 1
+        if ret_type == "Absolute Profit (eToro Style)":
+             base_deposits = df_plot['Cumulative_Net_Flow'].iloc[0]
+             df_plot['Active_Deposits'] = df_plot['Cumulative_Net_Flow'] - base_deposits
+             base_val = df_plot['Net_Value'].iloc[0]
+             df_plot['Active_Profit'] = df_plot['Net_Value'] - base_val - df_plot['Active_Deposits']
+             
+             safe_deposits = df_plot['Active_Deposits'].replace(0, np.nan)
+             df_plot['TWRR_Period'] = (df_plot['Active_Profit'] / safe_deposits).fillna(0)
         else:
-             initial_val = df_plot['Net_Value'].iloc[0]
-             df_plot['TWRR_Period'] = (df_plot['Net_Value'] / initial_val) - 1 if initial_val != 0 else 0
+             if 'Daily_TWRR' in df_plot.columns:
+                  temp_twrr = df_plot['Daily_TWRR'].copy()
+                  temp_twrr.iloc[0] = 0
+                  df_plot['TWRR_Period'] = (1 + temp_twrr).cumprod() - 1
+             else:
+                  initial_val = df_plot['Net_Value'].iloc[0]
+                  if initial_val != 0:
+                      df_plot['TWRR_Period'] = (df_plot['Net_Value'] / initial_val) - 1
+                  else:
+                      df_plot['TWRR_Period'] = 0
         
         fig_eq = go.Figure()
+        
+        name_label = 'Portfolio (Absolute ROI)' if ret_type == "Absolute Profit (eToro Style)" else 'Portfolio (TWRR)'
         fig_eq.add_trace(go.Scatter(x=df_plot['Date'], y=df_plot['TWRR_Period'], mode='lines', 
-                                    name='Portfolio (TWRR)', line=dict(color='#00ff9d', width=3),
+                                    name=name_label, line=dict(color='#00ff9d', width=3),
                                     fill='tozeroy', fillcolor='rgba(0, 255, 157, 0.1)'))
         
-        # Add Benchmark
-        if bench_sel != 'None':
-            bench_ticker = custom_bench if bench_sel == 'Custom' else BENCHMARKS[bench_sel]
-            if bench_ticker:
-                import yfinance as yf
-                try:
-                    b_data = yf.download(bench_ticker.upper(), start=start_date, end=end_date+pd.Timedelta(days=1), progress=False)['Close']
-                    if isinstance(b_data, pd.DataFrame) and not b_data.empty: 
-                         b_data = b_data[bench_ticker.upper()] if bench_ticker.upper() in b_data.columns else b_data.iloc[:, 0]
-                    b_data = b_data.reindex(df_plot['Date']).ffill().bfill()
-                    b_ret = b_data.pct_change().fillna(0)
-                    b_ret.iloc[0] = 0
-                    b_cum = (1 + b_ret).cumprod() - 1
-                    fig_eq.add_trace(go.Scatter(x=df_plot['Date'], y=b_cum, mode='lines', 
-                                                name=bench_ticker.upper(), line=dict(color='#ff9900', width=2, dash='dash')))
-                except Exception as e:
-                    pass
+        # Add Benchmarks (multi-select)
+        import yfinance as yf
+        bench_colors = {"S&P 500": "#ff9900", "NASDAQ 100": "#00bfff", "MSCI World": "#ff66ff"}
+        all_bench_tickers = [(name, BENCHMARKS[name]) for name in bench_selected]
+        if custom_bench.strip():
+            all_bench_tickers.append((custom_bench.upper(), custom_bench.upper()))
+        
+        for bench_name, bench_ticker in all_bench_tickers:
+            try:
+                b_data = yf.download(bench_ticker.upper(), start=start_date, end=end_date+pd.Timedelta(days=1), progress=False)['Close']
+                if isinstance(b_data, pd.DataFrame) and not b_data.empty: 
+                     b_data = b_data.iloc[:, 0]
+                if not b_data.empty:
+                    b_start_val = b_data.iloc[0]
+                    if b_start_val > 0:
+                        b_cum = (b_data / b_start_val) - 1
+                        color = bench_colors.get(bench_name, '#888888')
+                        fig_eq.add_trace(go.Scatter(x=b_cum.index, y=b_cum, mode='lines', 
+                                                    name=bench_name, line=dict(color=color, width=2, dash='dash')))
+            except Exception:
+                pass
 
         fig_eq.update_layout(template="plotly_dark", margin=dict(l=0, r=0, t=30, b=0),
                              hovermode="x unified", xaxis_title="", yaxis_title="Cumulative Return (%)",
@@ -283,7 +320,7 @@ with main_col:
             df_pie = pos_summary_realtime[pos_summary_realtime['Net Value ($)'] > 1].copy()
             
             if groupby_opt == "Category (Stock, ETF, etc.)":
-                from portfolio_reconstructor import TICKER_MAPPING
+                from engine.portfolio_reconstructor import TICKER_MAPPING
                 temp_act = activity[['Detalles', 'Tipo de activo']].dropna()
                 temp_act['Ticker_Clean'] = temp_act['Detalles'].apply(lambda x: TICKER_MAPPING.get(str(x).split('/')[0].strip().upper(), str(x).split('/')[0].strip().upper()))
                 
@@ -361,20 +398,105 @@ with main_col:
 
     with tab3:
         st.subheader("Risk Analysis & Drawdown Series")
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Max Drawdown", f"{risk_metrics['Max Drawdown']*100:.2f}%", delta_color="inverse", help="Deepest historical drop from peak to trough in the equity curve.")
         with col2:
             st.metric("Sortino Ratio", f"{risk_metrics['Sortino']:.2f}", help="Sharpe variant that only penalizes downward volatility (losses).")
+        with col3:
+            st.metric("Sharpe Ratio", f"{risk_metrics['Sharpe']:.2f}", help="Risk-adjusted return. >1.0 is acceptable, >2.0 is excellent.")
         
-        st.markdown("### 🎢 Historical Drawdown Timeline (%)")
+        # --- Time Filter & Benchmark Controls ---
+        col_dd_bench, col_dd_time = st.columns([1, 2])
+        with col_dd_bench:
+            dd_benchmarks = st.multiselect("Compare Drawdown vs:", ["S&P 500", "NASDAQ 100", "MSCI World"], default=["S&P 500"])
+        with col_dd_time:
+            dd_timeframe = st.radio("Time Filter:", ["Max", "5Y", "1Y", "YTD", "6M", "3M"], horizontal=True, key="dd_time")
+        
+        DD_BENCH_MAP = {"S&P 500": "^GSPC", "NASDAQ 100": "^NDX", "MSCI World": "URTH"}
+        
+        # Time filter logic
+        dd_plot = equity_curve.copy()
+        dd_end = dd_plot['Date'].max()
+        if dd_timeframe == '5Y': dd_start = dd_end - pd.DateOffset(years=5)
+        elif dd_timeframe == '1Y': dd_start = dd_end - pd.DateOffset(years=1)
+        elif dd_timeframe == 'YTD': dd_start = pd.to_datetime(f"{dd_end.year}-01-01")
+        elif dd_timeframe == '6M': dd_start = dd_end - pd.DateOffset(months=6)
+        elif dd_timeframe == '3M': dd_start = dd_end - pd.DateOffset(months=3)
+        else: dd_start = dd_plot['Date'].min()
+        
+        dd_plot = dd_plot[dd_plot['Date'] >= dd_start].copy()
+        
+        # Recalculate drawdown for filtered period using TWRR-based cumulative return
+        if 'Daily_TWRR' in dd_plot.columns and len(dd_plot) > 1:
+            temp_twrr = dd_plot['Daily_TWRR'].copy()
+            temp_twrr.iloc[0] = 0
+            dd_plot['Cum_Return'] = (1 + temp_twrr).cumprod()
+            dd_plot['DD_Peak'] = dd_plot['Cum_Return'].cummax()
+            dd_plot['DD_Series'] = (dd_plot['Cum_Return'] / dd_plot['DD_Peak']) - 1
+        else:
+            dd_plot['DD_Peak'] = dd_plot['Net_Value'].cummax()
+            dd_plot['DD_Series'] = (dd_plot['Net_Value'] - dd_plot['DD_Peak']) / dd_plot['DD_Peak']
+        
+        st.markdown("### \U0001f3a2 Historical Drawdown Timeline (%)")
         fig_dd = go.Figure()
-        fig_dd.add_trace(go.Scatter(x=equity_curve['Date'], y=equity_curve['Drawdown'] * 100, mode='lines',
-                                    name='Drawdown (%)', line=dict(color='#ff4b4b', width=1.5),
-                                    fill='tozeroy', fillcolor='rgba(255, 75, 75, 0.2)'))
+        fig_dd.add_trace(go.Scatter(x=dd_plot['Date'], y=dd_plot['DD_Series'], mode='lines',
+                                    name='Portfolio', line=dict(color='#00ff9d', width=2),
+                                    fill='tozeroy', fillcolor='rgba(0, 255, 157, 0.1)'))
+        
+        # Add benchmark drawdowns
+        import yfinance as yf
+        for bench_name in dd_benchmarks:
+            bench_tick = DD_BENCH_MAP.get(bench_name, "^GSPC")
+            try:
+                b_data = yf.download(bench_tick, start=dd_start, end=dd_end + pd.Timedelta(days=1), progress=False)['Close']
+                if isinstance(b_data, pd.DataFrame) and not b_data.empty:
+                    b_data = b_data.iloc[:, 0]
+                if not b_data.empty:
+                    b_ret = b_data.pct_change().fillna(0)
+                    b_ret.iloc[0] = 0
+                    b_cum = (1 + b_ret).cumprod()
+                    b_peak = b_cum.cummax()
+                    b_dd = (b_cum / b_peak) - 1
+                    colors = {"S&P 500": "#ff9900", "NASDAQ 100": "#00bfff", "MSCI World": "#ff66ff"}
+                    fig_dd.add_trace(go.Scatter(x=b_data.index, y=b_dd, mode='lines',
+                                                name=bench_name, line=dict(color=colors.get(bench_name, '#888'), width=1.5, dash='dash')))
+            except Exception:
+                pass
+        
         fig_dd.update_layout(template="plotly_dark", yaxis_title="Drawdown (%)",
-                             margin=dict(l=0, r=0, t=30, b=0), hovermode="x unified")
+                             yaxis_tickformat='.1%',
+                             margin=dict(l=0, r=0, t=30, b=0), hovermode="x unified",
+                             legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(fig_dd, use_container_width=True)
+        
+        # --- Worst Drawdowns Table ---
+        st.markdown("### \U0001f4c9 Worst Drawdowns")
+        if 'DD_Series' in dd_plot.columns:
+            # Identify drawdown periods
+            in_dd = dd_plot['DD_Series'] < 0
+            dd_groups = (~in_dd).cumsum()
+            
+            dd_periods = []
+            for group_id, group_df in dd_plot[in_dd].groupby(dd_groups[in_dd]):
+                if len(group_df) > 0:
+                    depth = group_df['DD_Series'].min()
+                    start_dt = group_df['Date'].iloc[0]
+                    end_dt = group_df['Date'].iloc[-1]
+                    months = max(1, round((end_dt - start_dt).days / 30))
+                    dd_periods.append({
+                        'Depth': depth,
+                        'Start': start_dt.strftime('%b %Y'),
+                        'End': end_dt.strftime('%b %Y'),
+                        'Total Months': months
+                    })
+            
+            if dd_periods:
+                dd_table = pd.DataFrame(dd_periods).sort_values('Depth').head(5).reset_index(drop=True)
+                dd_table['Depth'] = dd_table['Depth'].apply(lambda x: f"{x*100:.2f}%")
+                st.dataframe(dd_table, use_container_width=True, hide_index=True)
+            else:
+                st.info("No drawdowns detected in the selected period.")
 
     with tab4:
         st.subheader("🌱 Strategic Compound Interest Planner")
@@ -398,7 +520,7 @@ with main_col:
             drip_bool = True if "DRIP" in c_drip_opt else False
             
         with col_figs:
-            from forecasting import compound_interest_simulator
+            from analysis.forecasting import compound_interest_simulator
             df_comp = compound_interest_simulator(c_principal, c_contrib, c_rate, c_div, c_years, c_inf, c_var)
             
             sub_tab_inv, sub_tab_var = st.tabs(["Accumulation Chart", "Multiplier Factor"])
@@ -433,6 +555,11 @@ with main_col:
                 y_col = 'Factor_DRIP' if drip_bool else 'Factor_NoDRIP'
                 fig_var.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp[y_col], mode='lines',
                                              name='Expected Multiplier', line=dict(color='#00ff9d', width=3)))
+                if drip_bool:
+                    fig_var.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['Factor_DRIP_Up'], mode='lines',
+                                                 name='Upper Bound (Bullish)', line=dict(color='rgba(0,255,157,0.5)', dash='dash')))
+                    fig_var.add_trace(go.Scatter(x=df_comp['Año'], y=df_comp['Factor_DRIP_Down'], mode='lines',
+                                                 name='Lower Bound (Bearish)', line=dict(color='rgba(255,100,100,0.5)', dash='dash')))
                                                  
                 fig_var.update_layout(template="plotly_dark", hovermode="x unified",
                                       xaxis_title="Projection Years", yaxis_title="Total Multiplier (Final / Invested)",
@@ -471,6 +598,30 @@ with main_col:
                                          xaxis_title="Trading Days", yaxis_title="Projected Equity ($)")
                     st.plotly_chart(fig_mc, use_container_width=True)
                     
+                    st.markdown("### 📊 Historical + Projected Timeline")
+                    fig_full = go.Figure()
+                    
+                    # Historical Data
+                    fig_full.add_trace(go.Scatter(x=equity_curve['Date'], y=equity_curve['Net_Value'],
+                                                  mode='lines', name='Historical Value', line=dict(color='gray', width=2)))
+                    
+                    # Create future dates
+                    last_date = equity_curve['Date'].iloc[-1]
+                    future_dates = pd.date_range(start=last_date, periods=mc_days+1, freq='B')
+                    
+                    if len(future_dates) == len(percentiles_df):
+                        fig_full.add_trace(go.Scatter(x=future_dates, y=percentiles_df['P90 (Bullish)'],
+                                                      mode='lines', name='Bullish (P90)', line=dict(color='rgba(0,255,157, 0.8)', dash='dash')))
+                        fig_full.add_trace(go.Scatter(x=future_dates, y=percentiles_df['P50 (Expected)'],
+                                                      mode='lines', name='Expected (P50)', line=dict(color='#00ff9d', width=3)))
+                        fig_full.add_trace(go.Scatter(x=future_dates, y=percentiles_df['P10 (Bearish)'],
+                                                      mode='lines', name='Bearish (P10)', line=dict(color='rgba(255,75,75,0.8)', dash='dash'),
+                                                      fill='tonexty', fillcolor='rgba(0,255,157,0.1)'))
+                    
+                    fig_full.update_layout(template="plotly_dark", title="Full Portfolio Evolution",
+                                           xaxis_title="Date", yaxis_title="Total Equity ($)", hovermode="x unified")
+                    st.plotly_chart(fig_full, use_container_width=True)
+                    
                     hw_trend = trend_forecasting(equity_curve, periods=mc_days)
                     if not hw_trend.empty:
                         st.markdown("### 📈 Exponential Smoothing (Holt-Winters Trend)")
@@ -505,14 +656,14 @@ with main_col:
                     st.markdown("#### 🏆 Top 5 Winners")
                     asset_col = 'Action' if 'Action' in closed_pos.columns else ('Asset' if 'Asset' in closed_pos.columns else 'Acción')
                     best_5 = closed_pos.nlargest(5, col_pnl)[[asset_col, col_pnl]]
-                    st.dataframe(best_5.rename(columns={asset_col: 'Asset'}).style.format({col_pnl: "${:,.2f}"}).applymap(lambda x: "color: #00ff9d;", subset=[col_pnl]), use_container_width=True)
+                    st.dataframe(best_5.rename(columns={asset_col: 'Asset'}).style.format({col_pnl: "${:,.2f}"}).map(lambda x: "color: #00ff9d;", subset=[col_pnl]), use_container_width=True)
                 with col_rank2:
                     st.markdown("#### 💀 Top 5 Losers")
                     worst_5 = closed_pos.nsmallest(5, col_pnl)[[asset_col, col_pnl]]
-                    st.dataframe(worst_5.rename(columns={asset_col: 'Asset'}).style.format({col_pnl: "${:,.2f}"}).applymap(lambda x: "color: #ff4b4b;", subset=[col_pnl]), use_container_width=True)
+                    st.dataframe(worst_5.rename(columns={asset_col: 'Asset'}).style.format({col_pnl: "${:,.2f}"}).map(lambda x: "color: #ff4b4b;", subset=[col_pnl]), use_container_width=True)
                 
                 st.markdown("#### Complete Trade Log")
-                st.dataframe(closed_pos.style.applymap(lambda x: "color: #00ff9d;" if isinstance(x, (int, float)) and x > 0 else ("color: #ff4b4b;" if isinstance(x, (int, float)) and x < 0 else ""), subset=[col_pnl]), use_container_width=True)
+                st.dataframe(closed_pos.style.map(lambda x: "color: #00ff9d;" if isinstance(x, (int, float)) and x > 0 else ("color: #ff4b4b;" if isinstance(x, (int, float)) and x < 0 else ""), subset=[col_pnl]), use_container_width=True)
         else:
             st.info("Closed positions log not found or empty.")
 
@@ -569,19 +720,16 @@ if show_ai:
                     context += f"Max Historical Drawdown: {risk_metrics['Max Drawdown']*100:.2f}%\n"
                 if 'Sortino' in risk_metrics:
                     context += f"Sortino Ratio: {risk_metrics['Sortino']:.2f}\n"
+                if 'Sharpe' in risk_metrics:
+                    context += f"Sharpe Ratio: {risk_metrics['Sharpe']:.2f}\n"
                 if 'pe_ratio' in globals() and pd.notnull(pe_ratio):
                     context += f"Portfolio Weighted P/E: {pe_ratio:.2f}\n"
 
                 if not pos_summary_realtime.empty:
-                    context += "Active Holdings (Real-time Prices from Yahoo Finance):\n"
-                    for _, r in pos_summary_realtime.head(5).iterrows():
+                    context += "Active Holdings:\n"
+                    for _, r in pos_summary_realtime.iterrows():
                         ticker = r['Asset']
-                        try:
-                            curr_price = yf.Ticker(ticker).history(period="1d")['Close'].iloc[-1]
-                            price_info = f"Yahoo Finance Live Price: ${curr_price:.2f}"
-                        except:
-                            price_info = "Live Price: Not available"
-                        context += f"- {ticker}: {r['Net Value ($)']} USD ({price_info}, PnL %: {r['PnL (%)']:+.2%})\n"
+                        context += f"- {ticker}: {r['Net Value ($)']} USD (PnL %: {r['PnL (%)']:+.2%})\n"
                 
                 if 'closed_positions' in data_dict:
                     closed_df = data_dict['closed_positions']
@@ -596,29 +744,124 @@ if show_ai:
                 return context
             except:
                 return "Portfolio data not available yet."
-
         if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
             with chat_placeholder.chat_message("assistant"):
-                sys_inst = f"You are a professional financial portfolio analyst. Today is {datetime.now().strftime('%d %B %Y')}. DO NOT HALLUCINATE PRICES; use the ones provided. Data context:\n" + get_portfolio_context()
+                prompt_text = st.session_state.messages[-1]["parts"][0]
+                final_text = ""
+                used_fallback = False
+                
+                # =========================================================
+                # STRATEGY 1: Multi-Agent Orchestrator (ADK)
+                # Uses 3 lightweight agents for complex queries.
+                # =========================================================
                 try:
-                    import google.generativeai as genai
-                    try:
-                        model = genai.GenerativeModel("gemini-3.1-flash-lite-preview", system_instruction=sys_inst)
-                    except:
-                        model = genai.GenerativeModel("gemini-3-flash-preview", system_instruction=sys_inst)
+                    from google.adk.agents import Agent
+                    from google.adk.models.google_llm import Gemini
+                    from google.adk.tools import google_search, AgentTool
+                    from google.adk.runners import InMemoryRunner
+                    from google.genai import types
+                    import asyncio
                     
-                    history = []
-                    for m in st.session_state.messages[:-1]:
-                        g_role = "user" if m["role"] == "user" else "model"
-                        history.append({"role": g_role, "parts": m["parts"]})
+                    retry_config = types.HttpRetryOptions(
+                        attempts=3,
+                        exp_base=2,
+                        initial_delay=1,
+                        http_status_codes=[429, 500, 503, 504]
+                    )
+                    
+                    portfolio_context = get_portfolio_context()
+                    
+                    portfolio_agent = Agent(
+                        name="portfolio_agent",
+                        model=Gemini(
+                            model="gemini-2.5-flash-lite",
+                            retry_options=retry_config
+                        ),
+                        instruction=f"You are an expert eToro portfolio analyst. Today is {datetime.now().strftime('%d %B %Y')}. Answer ONLY based on the following user account context. Do not invent data. IMPORTANT: Always respond in the SAME language the user writes in.\nContext:\n{portfolio_context}"
+                    )
+                    
+                    web_search_agent = Agent(
+                        name="web_search_agent",
+                        model=Gemini(
+                            model="gemini-2.5-flash-lite",
+                            retry_options=retry_config
+                        ),
+                        instruction="You are a financial search assistant. Use google_search to find macroeconomic data, current stock prices (prioritize Yahoo Finance), and global market news. Respond concisely in the same language the user used.",
+                        tools=[google_search]
+                    )
+                    
+                    coordinator_agent = Agent(
+                        name="coordinator",
+                        model=Gemini(
+                            model="gemini-2.5-flash-lite",
+                            retry_options=retry_config
+                        ),
+                        instruction="You are a financial orchestrator. You have two tools: portfolio_agent and web_search_agent.\n1. Call portfolio_agent if the question is about the user's portfolio.\n2. Call web_search_agent if you need recent prices or macroeconomic news.\n3. You may call BOTH if the user wants to compare their portfolio with external market data.\n4. CRITICAL: Always respond in the SAME language the user writes in. If they write in Spanish, respond in Spanish. If in English, respond in English.",
+                        tools=[AgentTool(portfolio_agent), AgentTool(web_search_agent)]
+                    )
+                    
+                    runner = InMemoryRunner(agent=coordinator_agent)
+                    
+                    with st.spinner("🔍 Analyzing with Multi-Agent System..."):
+                        response = asyncio.run(runner.run_debug(prompt_text))
                         
-                    chat = model.start_chat(history=history)
-                    with st.spinner("Analyzing..."):
-                        response = chat.send_message(st.session_state.messages[-1]["parts"][0])
-                        st.markdown(response.text)
-                    st.session_state.messages.append({"role": "model", "parts": [response.text]})
+                        if isinstance(response, list):
+                            for event in response:
+                                if getattr(event, 'content', None) and getattr(event.content, 'parts', None):
+                                    for part in event.content.parts:
+                                        if getattr(part, 'text', None):
+                                            final_text += part.text + "\n"
+                        else:
+                            final_text = str(response)
+                        
+                        if final_text.strip():
+                            st.caption("🤖 *Powered by Multi-Agent Orchestrator*")
+                            
                 except Exception as e:
-                    st.error(f"AI Error: {e}")
+                    error_msg = str(e)
+                    if "429" in error_msg or "503" in error_msg or "UNAVAILABLE" in error_msg or "TooManyRequests" in error_msg:
+                        used_fallback = True
+                    else:
+                        final_text = ""
+                        used_fallback = True
+                
+                # =========================================================
+                # STRATEGY 2: Fallback — Single Direct API Call
+                # Uses one lightweight call when agents hit rate limits.
+                # =========================================================
+                if not final_text.strip() or used_fallback:
+                    try:
+                        from google import genai
+                        
+                        api_key = os.environ.get("GEMINI_API_KEY", "")
+                        client = genai.Client(api_key=api_key)
+                        
+                        portfolio_context = get_portfolio_context()
+                        system_prompt = (
+                            f"You are an expert financial advisor for eToro portfolios. "
+                            f"Today is {datetime.now().strftime('%d %B %Y')}. "
+                            f"Answer the user's question based on the portfolio data below. "
+                            f"CRITICAL: Always respond in the SAME language the user writes in.\n\n"
+                            f"PORTFOLIO DATA:\n{portfolio_context}"
+                        )
+                        
+                        with st.spinner("💡 Using Direct AI (lightweight mode)..."):
+                            response = client.models.generate_content(
+                                model="gemini-2.5-flash-lite",
+                                contents=f"{system_prompt}\n\nUser Question: {prompt_text}",
+                            )
+                            final_text = response.text if response.text else ""
+                            
+                        if final_text.strip():
+                            st.caption("⚡ *Powered by Direct AI (lightweight mode)*")
+                    except Exception as fallback_err:
+                        final_text = f"Both AI strategies failed. Error: {fallback_err}"
+                
+                if not final_text.strip():
+                    final_text = "Could not generate a response. Please check your API key configuration or try again later."
+                
+                st.markdown(final_text)
+                st.session_state.messages.append({"role": "model", "parts": [final_text]})
 
         if prompt := st.chat_input("Ask a question about your portfolio..."):
             st.session_state.messages.append({"role": "user", "parts": [prompt]})

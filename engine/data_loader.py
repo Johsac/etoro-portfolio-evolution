@@ -27,10 +27,22 @@ def load_etoro_data(file):
 
 def fetch_summary_attributes(summary_df):
     """
-    Intenta extraer el saldo final, total de depositos y dividendos del resumen.
-    Asume que los datos estan tabulares o como diccionarios.
+    Extrae la fecha de inicio y finalización del resumen de la cuenta.
     """
-    pass
+    attrs = {}
+    try:
+        # eToro usually places 'Fecha de inicio' and 'Fecha final' in the first column
+        # and the actual date in the second column (Unnamed: 1)
+        for _, row in summary_df.iterrows():
+            key = str(row.iloc[0]).lower()
+            val = row.iloc[1]
+            if 'fecha de inicio' in key:
+                attrs['start_date'] = pd.to_datetime(val, dayfirst=True)
+            elif 'fecha final' in key or 'fecha de finalización' in key:
+                attrs['end_date'] = pd.to_datetime(val, dayfirst=True)
+    except Exception as e:
+        print(f"Error extracting dates from summary: {e}")
+    return attrs
 
 def clean_data(activity, closed_positions, dividends, summary, financial_summary):
     # ==========================
@@ -84,10 +96,13 @@ def clean_data(activity, closed_positions, dividends, summary, financial_summary
     if 'Fecha de pago' in dividends.columns:
         dividends['Fecha de pago'] = pd.to_datetime(dividends['Fecha de pago'], format='%d/%m/%Y %H:%M:%S', errors='coerce')
 
+    attrs = fetch_summary_attributes(summary)
+
     return {
         'activity': activity,
         'closed_positions': closed_positions,
         'dividends': dividends,
         'summary': summary,
-        'financial_summary': financial_summary
+        'financial_summary': financial_summary,
+        'summary_attrs': attrs
     }
